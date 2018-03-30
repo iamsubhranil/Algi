@@ -45,19 +45,6 @@ static bool match2(TokenType type){
     return false;
 }
 
-static bool match3(int count, ...){
-    va_list list;
-    va_start(list, count);
-    for(int i = 0;i < count;i++){
-        if(match2((TokenType)va_arg(list, int))){
-            va_end(list);
-            return true;
-        }
-    }
-    va_end(list);
-    return false;
-}
-
 static const char* tokenStrings[] = { 
 #define ET(x) #x,
 #include "tokens.h"

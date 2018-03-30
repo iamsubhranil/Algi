@@ -181,7 +181,7 @@ static void stmt_print2(Statement *stmt){
             break;
         case STATEMENT_PRINT:
             for(uint64_t i = 0;i < stmt->prints.count;i++){
-                printf("|-- Argument%ld", (i+1));
+                printf("|-- Argument%" PRIu64, (i+1));
                 expr_print(stmt->prints.args[i], printSpace + 5);
                 printf("\n");
                 print_space();
@@ -224,7 +224,7 @@ void blockstmt_print(BlockStatement st){
     for(uint64_t i = 0;i < st.count;i++){
         printf("\n");
         print_space();
-        printf("|-- Statement%ld", (i+1));
+        printf("|-- Statement%" PRIu64, (i+1));
         printSpace += 5;
         stmt_print2(st.statements[i]);
         printSpace -= 5;
