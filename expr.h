@@ -69,4 +69,6 @@ Expression* expr_new(ExpressionType type);
 void expr_dispose();
 #ifdef DEBUG
 void expr_print(Expression *exp, uint64_t printSpace);
+void expr_print_space(uint64_t space);
+#define print_space() expr_print_space(printSpace)
 #endif

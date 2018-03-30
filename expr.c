@@ -93,9 +93,9 @@ static const char *exprString[] = {
 //"          |-- 
 static uint64_t printSpace = 0;
 
-static void print_space(){ 
-    for(uint64_t i = 0;i < printSpace;i++)
-        printf("%c", i%5==0?'|':' ');
+void expr_print_space(uint64_t sp){
+    for(uint64_t i = 0;i < sp;i++)
+        printf("%s", i%5 == 0 ? "|" : " ");
 }
 
 static void expr_print2(Expression *expr){

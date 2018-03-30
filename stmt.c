@@ -132,11 +132,6 @@ static const char *stmtString[] = {
 //"          |-- 
 static uint64_t printSpace = 0;
 
-static void print_space(){
-    for(uint64_t i = 0;i < printSpace;i++)
-        printf("%c", i%5 == 0?'|':' ');
-}
-
 static void stmt_print2(Statement *stmt){
     printf("\n");
     uint64_t bak = printSpace;
