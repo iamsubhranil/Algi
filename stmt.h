@@ -20,6 +20,7 @@ typedef struct{
 } BlockStatement;
 
 typedef struct IfStatement{
+    Token token;
     Expression *condition;
     BlockStatement thenBlock;
     Statement *elseIf;
@@ -42,6 +43,7 @@ typedef struct{
 } DefineStatement;
 
 typedef struct{
+    Token token;
     Expression *value;
 } ReturnStatement;
 

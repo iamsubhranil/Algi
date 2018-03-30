@@ -18,7 +18,8 @@ void pylw(const char *msg, ...);
 void pcyn(const char *msg, ...);
 void pmgn(const char *msg, ...);
 
-void dbg(const char *msg, ...);
+#define dbg(x, ...) dbg2( ANSI_FONT_BOLD "<%s:%d> " ANSI_COLOR_RESET x, __FILE__, __LINE__, ##__VA_ARGS__)
+void dbg2(const char *msg, ...);
 void err(const char *msg, ...);
 void info(const char *msg, ...);
 void warn(const char *msg, ...);

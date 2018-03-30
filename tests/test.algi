@@ -12,8 +12,8 @@ Define MyFunction(Argument1, Argument2){
 }
 
 Print "Hello World!"
-
-If(True){
+Set j = 10
+If(j > 5){
     Set val = MyFunction(1, 2)
     Call MyFunction(2, 3)
 } Else If(False) {
@@ -24,6 +24,7 @@ If(True){
 
 Set j = MyStructure(1, 2, 3)
 Print "Structure.Mem1  : ", j.mem1
+String wrong = 1
 
 While(j < 5){
     Print "J is ", j

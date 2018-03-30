@@ -1,0 +1,30 @@
+Integer i = 2
+Number n = 32.3
+String s = "Bad"
+String w = "Good"
+Set s = "Ok"
+Container Yours(){
+    Boolean bool = True
+}
+Container Mine(){
+    Structure mem1 = Yours()
+}
+Structure a = Mine()
+String k = a.mem2.bool
+Define Function(){
+    Integer localVar = i
+}
+Set t = Function()
+Set q = t.localVar
+
+Container LinkedList(){
+    Set value = Null
+    Set next = Null
+}
+
+Set head = Null
+
+Define InsertAtBeg(Node){
+    Set Node.next = head
+    Set head = Node
+}

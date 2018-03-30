@@ -32,6 +32,7 @@ static Expression* expr_new2(){
 Expression* expr_new(ExpressionType type){
    Expression* e = expr_new2();
    e->type = type;
+   e->valueType = 0;
    return e;
 }
 
@@ -85,6 +86,7 @@ static const char *exprString[] = {
     "BinaryExpression",
     "UnaryExpression",
     "CallExpression",
+    "DefineExpression",
     "ReferenceExpression"
 } ;
 
@@ -108,6 +110,8 @@ static void expr_print2(Expression *expr){
         }
         else
             printf("|-- %s", exprString[expr->type]);
+        if(expr->valueType != 0)
+            printf(" (Type %d)", expr->valueType);
     }
     uint64_t bak = printSpace;
     switch(expr->type){
@@ -159,6 +163,7 @@ static void expr_print2(Expression *expr){
             printSpace += 5;
             expr_print2(expr->binex.right);
             break;
+        case EXPR_DEFINE:
         case EXPR_CALL:
             printf("\n");
             printSpace += 5;

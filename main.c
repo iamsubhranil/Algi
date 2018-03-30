@@ -2,6 +2,7 @@
 #include "display.h"
 #include "algi_common.h"
 #include "parser.h"
+#include "types.h"
 
 #include <unistd.h>
 #include <sys/stat.h>
@@ -53,7 +54,9 @@ int main(int argc, char *argv[]){
     
     BlockStatement s = parse(l);
     blockstmt_print(s);
-   
+    printf("\n");
+    fflush(stdout);
+    type_check(s); 
     printf("\n");
 
     blockstmt_dispose(s);

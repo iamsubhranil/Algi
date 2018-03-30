@@ -46,6 +46,7 @@ typedef enum{
     EXPR_BINARY,
     EXPR_UNARY,
     EXPR_CALL,
+    EXPR_DEFINE, // Same as CALL, except used with Define/Container
     EXPR_REFERENCE
 } ExpressionType;
 

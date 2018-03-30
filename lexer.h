@@ -18,6 +18,8 @@ typedef struct{
     TokenType type;
 } Token;
 
+static const Token nullToken = {NULL, NULL, 0, 0, 0, TOKEN_unknown};
+
 typedef struct{
     char *source;
     Token *tokens;

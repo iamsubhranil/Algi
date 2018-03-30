@@ -88,8 +88,10 @@ static Expression* _primary(){
         char *error = NULL;
         char *str = (char*)malloc(presentToken.length + 1);
         strncpy(str, presentToken.string, presentToken.length);
+        str[presentToken.length] = 0;
         double res = strtod(str, &error);
         if(*error != 0){
+
             free(str);
             err("Bad Number : " ANSI_FONT_BOLD ANSI_COLOR_MAGENTA );
             lexer_print_token(presentToken, 0);
@@ -102,6 +104,7 @@ static Expression* _primary(){
         else{
             free(str);
             ex->consex.dval = res;
+            ex->valueType = VALUE_NUM;
             advance();
             return ex;
         }
@@ -129,6 +132,7 @@ static Expression* _primary(){
         else{
             free(str);
             ex->consex.ival = res;
+            ex->valueType = VALUE_INT;
             advance();
             return ex;
         }
@@ -140,6 +144,7 @@ static Expression* _primary(){
         strncpy(ex->consex.sval, presentToken.string, presentToken.length);
         ex->consex.sval[presentToken.length] = 0;
         advance();
+        ex->valueType = VALUE_STR;
         return ex;
     }
     if(match(not) || match(minus) || match(Type)){
@@ -201,6 +206,7 @@ static Expression* _primary(){
    if(match(True) || match(False) || match(Null)){
         Expression *ces = expr_new(EXPR_CONSTANT);
         ces->consex.token = presentToken;
+        ces->valueType = match(True) || match(False) ? VALUE_BOOL : VALUE_STRUCT;
         advance();
         return ces;
    }
@@ -252,6 +258,8 @@ static Statement* statement_Set(){
         Statement *s = stmt_new2(SET);
         s->sets.target = target;
         s->sets.value = value;
+        if(s->sets.target->type == EXPR_VARIABLE)
+            s->sets.target->valueType = VALUE_GEN;
         return s;
     }
     return NULL;
@@ -345,6 +353,7 @@ static Statement* statement_Do(){
 static Statement* statement_Define(){
     Expression *name = expression(); 
     if(name->type == EXPR_CALL){
+        name->type = EXPR_DEFINE;
         Statement* def = stmt_new2(DEFINE);
         def->defs.name = name;
        // def->defs.arguments = NULL;
@@ -379,8 +388,9 @@ static Statement* statement_Container(){
 }
 
 static Statement* statement_Return(){
-    Expression *ex = expression();
     Statement *ret = stmt_new2(RETURN);
+    ret->rets.token = previousToken;
+    Expression *ex = expression();
     ret->rets.value = ex;
     return ret;
 }
@@ -403,7 +413,7 @@ unexcons(Type)
 #define deftype(x, y) \
 static Statement* statement_##x(){ \
     Statement *s = statement_Set(); \
-    if(s != NULL) \
+    if(s != NULL && s->sets.target->type == EXPR_VARIABLE) \
         s->sets.target->valueType = VALUE_##y; \
     return s; \
 }

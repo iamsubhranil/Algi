@@ -53,7 +53,7 @@ void pmgn(const char* msg, ...){
     printf(ANSI_COLOR_RESET);
 }
 
-void dbg(const char* msg, ...){
+void dbg2(const char* msg, ...){
     printf(ANSI_FONT_BOLD);
     printf(ANSI_COLOR_GREEN "\n[Debug] ");
     printf(ANSI_COLOR_RESET);
