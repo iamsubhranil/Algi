@@ -7,3 +7,8 @@ Container MyStruture(Integer val1, String val2){
     Set mem1 = val1
     Set mem2 = val2
 }
+Set myvar = (1+b)*mulvar^6/divvar-9
+Set neg = -9
+Set point = 0.9478723
+Set bad = 0.3924.4282
+Set pointStart = .392

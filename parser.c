@@ -205,7 +205,7 @@ static Expression* _primary(){
         return ces;
    }
     
-    err("Unexpected token '" ANSI_COLOR_MAGENTA ANSI_FONT_BOLD "%s" ANSI_COLOR_RESET "!",tokenStrings[presentToken.type]);
+    err("Unexpected token '" ANSI_COLOR_MAGENTA ANSI_FONT_BOLD "%s" ANSI_COLOR_RESET "'!",tokenStrings[presentToken.type]);
     token_print_source(presentToken, 1);
     hasErrors++;
     advance();

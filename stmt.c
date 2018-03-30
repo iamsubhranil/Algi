@@ -123,7 +123,8 @@ static const char *stmtString[] = {
     "DoStatement",
     "ReturnStatement",
     "DefineStatement",
-    "ContainerStatement"
+    "ContainerStatement",
+    "CallStatement"
 } ;
 
 //"|-- ReferenceStatement"
@@ -142,14 +143,15 @@ static void stmt_print2(Statement *stmt){
     if(printSpace > 0){
         print_space();
         printf("|-- %s", stmtString[stmt->type]);
-        printf("\n");
         printSpace += 5;
-        print_space();
+        if(stmt->type != STATEMENT_CALL){
+            printf("\n");
+            print_space();
+        }
     }
     switch(stmt->type){
         case STATEMENT_CALL:
-            printf("|-- Callee");
-            expr_print(stmt->calls.callExpression, printSpace+5);
+            expr_print(stmt->calls.callExpression, printSpace);
             break;
         case STATEMENT_SET:
             printf("|-- Target");
@@ -183,8 +185,10 @@ static void stmt_print2(Statement *stmt){
             for(uint64_t i = 0;i < stmt->prints.count;i++){
                 printf("|-- Argument%" PRIu64, (i+1));
                 expr_print(stmt->prints.args[i], printSpace + 5);
-                printf("\n");
-                print_space();
+                if(i < stmt->prints.count - 1){
+                    printf("\n");
+                    print_space();
+                }
             }
             break;
         case STATEMENT_RETURN:

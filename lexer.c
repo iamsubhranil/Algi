@@ -140,24 +140,18 @@ static Token makeKeyword(){
 }
 
 static Token makeNumber(){
-    uint8_t neg = 0;
-    if(source[present] == '-'){
-        neg++;
-        present++;
-    }
     uint8_t decimal = 0;
-    if(source[present] == '.'){
-        decimal++;
-        present++;
-    }
-    uint64_t bak = present;
+    uint64_t bak;
     while(isdigit(source[present]) || source[present] == '.'){
-        if(source[present] == '.')
+        if(source[present] == '.'){
+            if(decimal == 0)
+                bak = present;
             decimal++;
+        }
         present++;
     }
     present--;
-    if(((neg == 1 || decimal == 1) && bak == present) || decimal > 1){
+    if(((decimal == 1) && bak == present) || decimal > 1){
         return makeToken(unknown);
     }
     if(decimal == 1)
@@ -174,7 +168,7 @@ static Token nextToken(uint8_t atStart){
     if(isalpha(source[present])){
         return makeKeyword();
     }
-    else if(isdigit(source[present]) || source[present] == '-'){
+    else if(isdigit(source[present])){
         return makeNumber();
     }
     switch(source[present]){

@@ -93,11 +93,15 @@ static const char *exprString[] = {
 //"          |-- 
 static uint64_t printSpace = 0;
 
+static void print_space(){ 
+    for(uint64_t i = 0;i < printSpace;i++)
+        printf("%c", i%5==0?'|':' ');
+}
+
 static void expr_print2(Expression *expr){
     printf("\n");
     if(printSpace > 0){
-        for(uint64_t i = 0;i < printSpace;i++)
-            printf("%c", i%5==0?'|':' ');
+        print_space();
         if(expr == NULL){
             printf("|-- BadExpression!");
             return;
@@ -108,19 +112,23 @@ static void expr_print2(Expression *expr){
     uint64_t bak = printSpace;
     switch(expr->type){
         case EXPR_CONSTANT:
+            printf("\n");
+            printSpace += 5;
+            print_space();
+            printf("|-- ");
             switch(expr->consex.token.type){
-                case TOKEN_number : printf(" : %g", expr->consex.dval);
+                case TOKEN_number : printf("NumericConstant : %g", expr->consex.dval);
                                     break;
-                case TOKEN_integer: printf(" : %" PRId64, expr->consex.ival);
+                case TOKEN_integer: printf("IntegerConstant : %" PRId64, expr->consex.ival);
                                     break;
-                case TOKEN_string : printf(" : ");
+                case TOKEN_string : printf("StringConstant : ");
                                     lexer_print_token(expr->consex.token, 0);
                                     break;
-                case TOKEN_True: printf(" : True");
+                case TOKEN_True: printf("BooleanConstant : True");
                                  break;
-                case TOKEN_False: printf(" : False");
+                case TOKEN_False: printf("BooleanConstant : False");
                                   break;
-                case TOKEN_Null: printf(" : Null");
+                case TOKEN_Null: printf("NullConstant : Null");
                                  break;
                 default: break;
             }
@@ -139,14 +147,27 @@ static void expr_print2(Expression *expr){
             printf(" : ");
             lexer_print_token(expr->binex.token, 0);
             printSpace += 5;
-
+            printf("\n");
+            print_space();
+            printf("|-- LeftOperand");
+            printSpace += 5;
             expr_print2(expr->binex.left);
+            printSpace -= 5;
+            printf("\n");
+            print_space();
+            printf("|-- RightOperand");
+            printSpace += 5;
             expr_print2(expr->binex.right);
             break;
         case EXPR_CALL:
+            printf("\n");
             printSpace += 5;
-            printf(" : ");
+            print_space();
+            printf("|-- Callee : ");
             lexer_print_token(expr->calex.token, 0);
+            printf("\n");
+            print_space();
+            printf("|-- Arguments");
             printSpace += 5;
             for(uint64_t i = 0;i < expr->calex.arity;i++)
                 expr_print2(expr->calex.args[i]);
