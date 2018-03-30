@@ -1,0 +1,31 @@
+Container MyStructure(Argument1, Argument2, Argument3){
+    Set mem1 = Argument1
+    Set mem2 = Argument2
+    Set mem3 = Argument3.mem1
+    Set mem4 = 0
+}
+
+Define MyFunction(Argument1, Argument2){
+    Set local = Argument1 + Argument2
+    Print "Local is ", local
+    Return local
+}
+
+Print "Hello World!"
+
+If(True){
+    Set val = MyFunction(1, 2)
+    Call MyFunction(2, 3)
+} Else If(False) {
+    Integer iset = 10
+} Else {
+    String sset = "MyString"
+}
+
+Set j = MyStructure(1, 2, 3)
+Print "Structure.Mem1  : ", j.mem1
+
+While(j < 5){
+    Print "J is ", j
+    Set j = j + 1
+}
