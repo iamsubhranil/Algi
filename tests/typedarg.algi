@@ -6,3 +6,5 @@ Define MyMethod(String s){
 }
 Set m = Integer m + Number j
 Boolean l = String(m)
+Set a = MyStructure("2.32")
+Integer ret = MyMethod(3.32)

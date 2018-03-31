@@ -36,6 +36,7 @@ typedef struct{
     uint64_t hash;
     Context *context;
     ValueType valType;
+    uint64_t arity; // for containers and routines
 } Declaration;
 
 //static const Declaration nullDeclaration = {DECL_UND, {NULL, NULL, 0, 0, 0, TOKEN_unknown}, NULL, VALUE_UND};
@@ -170,8 +171,9 @@ static void register_pointer(void *n, void *o){
     pointer_cache[cache_index - 1] = n;
 }
 
-static void context_register_declaration(Context *cont, Token name, DeclarationType dType, ValueType vType, Context *dContext){
-    Declaration d = {dType, name, hash(name.string, name.length), dContext, vType};
+static void context_register_declaration(Context *cont, Token name, DeclarationType dType, 
+        ValueType vType, Context *dContext, uint64_t arity){
+    Declaration d = {dType, name, hash(name.string, name.length), dContext, vType, arity};
     //dbg("Registering declaration for : ");
     //lexer_print_token(name, 0);
     //printf(" with valtype %s at context %p", valueNames[vType], cont);
@@ -356,7 +358,7 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
             for(uint64_t i = 0;i < e->calex.arity;i++){
                 ValueType t = (ValueType)e->calex.args[i]->valueType;
                 context_register_declaration(context, e->calex.args[i]->token, DECL_VAR, 
-                        t == VALUE_UND ? VALUE_GEN : t, NULL);
+                        t == VALUE_UND ? VALUE_GEN : t, NULL, 0);
             }
             break;
             // context_register_declaration(context->superContext, e->calex.token, DECL_FUNC, VALUE_UND, context);
@@ -368,8 +370,35 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
                     lexer_print_token(e->token, 0);
                     hasErrors++;
                     e->valueType = VALUE_UND;
+                    break;
                 }
-                else if(d->declType == DECL_CONTAINER)
+                else if(d->declType == DECL_FUNC || d->declType == DECL_CONTAINER){
+                    if(d->arity != e->calex.arity ){
+                        err("Arity mismatch for ");
+                        lexer_print_token(d->name, 0);
+                        err("Defined as");
+                        token_print_source(d->name, 1);
+                        err("Called as");
+                        token_print_source(e->token, 1);
+                        hasErrors++;
+                        break;
+                    }
+                    for(uint64_t i = 0;i < d->arity;i++){
+                        ValueType t = d->context->declarations[i].valType;
+                        ValueType s = check_expression(e->calex.args[i], context, 1);
+                        //dbg("ArgumentType : %s ParameterType : %s", valueNames[t], valueNames[s]);
+                        if(t != s && s != VALUE_GEN && t != VALUE_GEN){
+                            err("Argument type mismatch for ");
+                            lexer_print_token(d->context->declarations[i].name, 0);
+                            err("Defined as %s", valueNames[t]);
+                            token_print_source(d->context->declarations[i].name, 1);
+                            err("Parameter passed of type %s", valueNames[s]);
+                            token_print_source(e->calex.args[i]->token, 1);
+                            hasErrors++;
+                        }
+                    }
+                }
+                if(d != NULL && d->declType == DECL_CONTAINER)
                     e->valueType = VALUE_STRUCT;
                 else
                     e->valueType = d->valType;
@@ -394,16 +423,20 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
 
 static void type_check_internal(BlockStatement, Context*);
 
+static Context* context_new(ContextType type, Context *superContext){
+        Context *fContext = (Context *)malloc(sizeof(Context));
+        register_pointer((void *)fContext, NULL);
+        fContext->superContext = superContext;
+        fContext->declarations = NULL;
+        fContext->count = 0;
+        fContext->type = type;
+        return fContext;
+}
+
 #define reg_x(x, y, z) \
-    static void register_##x(Statement *fStatement, Context *context){ \
-        Context *fContext = (Context *)malloc(sizeof(Context)); \
-        register_pointer((void *)fContext, NULL); \
-        fContext->superContext = context; \
-        fContext->declarations = NULL; \
-        fContext->count = 0; \
-        fContext->type = CONT_##y; \
+    static void register_##x(Statement *fStatement, Context *context, Context *fContext){ \
         DefineStatement ds = fStatement->defs; \
-        context_register_declaration(context, ds.name->token, DECL_##y, VALUE_##z, fContext); \
+        context_register_declaration(context, ds.name->token, DECL_##y, VALUE_##z, fContext, ds.name->calex.arity); \
         type_check_internal(ds.body, fContext); \
     }
 
@@ -415,13 +448,17 @@ reg_x(container, CONTAINER, STRUCT)
         //stmt_print(s);
         switch(s->type){
             case STATEMENT_CONTAINER:
-                check_expression(s->defs.name, context, 0);
-                register_container(s, context);
+                {
+                    Context *c = context_new(CONT_CONTAINER, context);
+                    check_expression(s->defs.name, c, 0);
+                    register_container(s, context, c);
+                }
                 break;
             case STATEMENT_DEFINE:
                 {
-                    check_expression(s->defs.name, context, 0);
-                    register_function(s, context);
+                    Context *c = context_new(CONT_FUNC, context);
+                    check_expression(s->defs.name, c, 0);
+                    register_function(s, context, c);
                     // type_check_internal(s->defs.body, context);
                 }
                 break;
@@ -472,7 +509,7 @@ reg_x(container, CONTAINER, STRUCT)
                     if(s->sets.target->type == EXPR_VARIABLE){
                         d = context_get_decl(s->sets.target->token, context, 1);
                         if(d == NULL){
-                            context_register_declaration(context, s->sets.target->token, DECL_VAR, targetType, NULL);
+                            context_register_declaration(context, s->sets.target->token, DECL_VAR, targetType, NULL, 0);
                             d = &(context->declarations[context->count - 1]);
                         }
                     }
@@ -518,8 +555,7 @@ reg_x(container, CONTAINER, STRUCT)
                       break;*/
                     else{
                         //dbg("TargetType : %d\n", (int)targetType);
-                        err("Incompatible Set target : ");
-                        print_types(2, targetType, valueType);
+                        err("Incompatible Set target : %s <= %s", valueNames[targetType], valueNames[valueType]);
                         // DONE: token_print_source
                         token_print_source(s->token, 1);
                         hasErrors++;
