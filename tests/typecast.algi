@@ -1,0 +1,22 @@
+Set i = 0
+If(Integer(i) == 0){
+    Print "i is zero!"
+}
+Boolean name = "Error"
+Boolean another = False
+If(Boolean(another) == True){
+    Print "Do something"
+}
+If(Number(another) == 342.23){
+    Print "Do nothing"
+}
+Set s = String(i + 323)
+Container MyStructure(){
+    Integer mem1 = 0
+}
+Set st = MyStructure()
+Structure t = Structure(st)
+Integer a = t.mem1
+If(Type(a) == Type(st)){
+    Print "Do something"
+}

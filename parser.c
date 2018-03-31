@@ -147,11 +147,13 @@ static Expression* _primary(){
         ex->valueType = VALUE_STR;
         return ex;
     }
-    if(match(not) || match(minus) || match(Type)){
+    if(match(not) || match(minus) || match(Type) 
+            || match(Integer) || match(Number) || match(String)
+            || match(Structure) || match(Boolean)){
         Expression *ex = expr_new(EXPR_UNARY);
         ex->unex.token = presentToken;
         advance();
-        ex->unex.right = expression();
+        ex->unex.right = _primary();
         return ex;
     }
    if(match(paranthesis_open)){

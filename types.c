@@ -106,13 +106,13 @@ static ValueType compare_types(ValueType left, ValueType right, Token op){
             {
                 switch(left){
                     case VALUE_NUM:
-                    case VALUE_INT:
-                        if(right == VALUE_NUM)
+                        if(right == VALUE_NUM || right == VALUE_INT)
                             return VALUE_NUM;
-                        if(right == VALUE_INT)
-                            return VALUE_INT;
                         if(right == VALUE_GEN)
                             return VALUE_GEN;
+                    case VALUE_INT:
+                        if(right == VALUE_NUM || right == VALUE_INT || right == VALUE_GEN)
+                            return right;
                         goto bin_type_mismatch;
                     case VALUE_GEN:
                         if(right == VALUE_NUM || right == VALUE_INT || right == VALUE_GEN)
@@ -128,22 +128,26 @@ bin_type_mismatch:
                         return VALUE_GEN;
                 }
             } 
-        case TOKEN_equal:
         case TOKEN_equal_equal:
+        case TOKEN_not_equal:
+            if(right == VALUE_BOOL && left == VALUE_BOOL){
+                return VALUE_BOOL;
+            }
+        //case TOKEN_equal:
         case TOKEN_lesser:
         case TOKEN_lesser_equal:
         case TOKEN_greater:
         case TOKEN_greater_equal:
-        case TOKEN_not_equal:
             switch(left){
                 case VALUE_INT:
                 case VALUE_GEN:
                 case VALUE_NUM:
-                    if(right == VALUE_GEN || right == VALUE_INT || right == VALUE_GEN)
+                    if(right == VALUE_NUM || right == VALUE_INT || right == VALUE_GEN)
                         return VALUE_BOOL;
                 default:
                     goto bin_type_mismatch;
             }
+            break;
         default:
             return VALUE_GEN;
     }
@@ -221,6 +225,9 @@ static Declaration* ref_get_decl(Context *context, Expression *ref){
 }
 
 static Declaration* expr_get_decl(Context *context, Expression *expr){
+    if(expr->type == EXPR_UNARY){
+        return expr_get_decl(context, expr->unex.right);
+    }
     if(expr->type == EXPR_REFERENCE)
         return ref_get_decl(context, expr);
     else
@@ -255,7 +262,39 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
             }
             break;
         case EXPR_UNARY:
-            e->valueType = check_expression(e->unex.right, context, searchSuper);
+            {
+                ValueType t = check_expression(e->unex.right, context, searchSuper);
+#define TYPECAST(type, y) \
+                case TOKEN_##type: \
+                                if(t != VALUE_##y && t != VALUE_GEN){ \
+                                    err("Bad typecast from %s to " #type, valueNames[t]); \
+                                    token_print_source(e->unex.token, 1); \
+                                    hasErrors++; \
+                                } \
+                                e->valueType = VALUE_##y; \
+                                break; 
+                switch(e->unex.token.type){
+                    TYPECAST(Integer, INT)
+                    TYPECAST(String, STR)
+                    TYPECAST(Boolean, BOOL)
+                    TYPECAST(Structure, STRUCT)
+#undef TYPECAST
+                    case TOKEN_Number:
+                        if(t != VALUE_INT && t != VALUE_NUM && t != VALUE_GEN){
+                            err("Bad typecast from %s to Number!", valueNames[t]);
+                            token_print_source(e->unex.token, 1);
+                            hasErrors++; 
+                        }
+                        e->valueType = VALUE_NUM;
+                        break;
+                    case TOKEN_Type:
+                        e->valueType = VALUE_INT;
+                        break;
+                    default:
+                        e->valueType = t;
+                        break;
+                }
+            }
             break;
         case EXPR_VARIABLE:
             {
