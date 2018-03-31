@@ -28,3 +28,5 @@ typedef struct{
 } Value;
 */
 void type_check(BlockStatement statements);
+uint64_t type_has_errors();
+void type_dispose();

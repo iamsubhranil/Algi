@@ -9,9 +9,6 @@
 #include "display.h"
 
 
-/* The code below is for testing and debugging purposes.
- * =====================================================
- */
 
 #ifdef DEBUG
 
@@ -21,12 +18,22 @@ static const char* tokenStrings[] = {
 #undef ET
 };
 
+#endif
+
 void lexer_print_token(Token t, uint8_t printType){
     for(uint64_t i = 0;i < t.length;i++)
         pmgn("%c", t.string[i]);
+#ifdef DEBUG
     if(printType)
         pblue("(%s) \t", tokenStrings[t.type]);
+#endif
 }
+
+/* The code below is for testing and debugging purposes.
+ * =====================================================
+ */
+
+#ifdef DEBUG
 
 void lexer_print_tokens(TokenList list){
     size_t prevLine = 0;
@@ -249,6 +256,8 @@ static Token nextToken(uint8_t atStart){
     return makeToken(unknown);
 }
 
+static uint64_t hasErrors = 0;
+
 TokenList tokens_scan(const char* line){
     source = strdup(line);
     length = strlen(source);
@@ -265,6 +274,7 @@ TokenList tokens_scan(const char* line){
             lexer_print_token(t, 0);
             printf("'");
             token_print_source(list.tokens[list.count - 1], 1);
+            hasErrors++;
         }
     }
     if(list.tokens[list.count - 1].type != TOKEN_eof)
@@ -276,4 +286,8 @@ TokenList tokens_scan(const char* line){
 void tokens_free(TokenList list){
     free(list.tokens);
     free(list.source);
+}
+
+uint64_t lexer_has_errors(){
+    return hasErrors;
 }

@@ -53,7 +53,11 @@ void pmgn(const char* msg, ...){
     printf(ANSI_COLOR_RESET);
 }
 
+#ifdef DEBUG
 void dbg2(const char* msg, ...){
+#else
+void dbg(const char* msg, ...){
+#endif
     printf(ANSI_FONT_BOLD);
     printf(ANSI_COLOR_GREEN "\n[Debug] ");
     printf(ANSI_COLOR_RESET);
@@ -61,8 +65,11 @@ void dbg2(const char* msg, ...){
     va_start(args, msg);
     vprintf(msg, args);
 }
-
+#ifdef DEBUG
+void info2(const char* msg, ...){
+#else
 void info(const char* msg, ...){
+#endif
     printf(ANSI_FONT_BOLD);
     printf(ANSI_COLOR_BLUE "\n[Info] ");
     printf(ANSI_COLOR_RESET);
@@ -71,7 +78,11 @@ void info(const char* msg, ...){
     vprintf(msg, args);
 }
 
+#ifdef DEBUG
+void err2(const char* msg, ...){
+#else
 void err(const char* msg, ...){
+#endif
     printf(ANSI_FONT_BOLD);
     printf(ANSI_COLOR_RED "\n[Error] ");
     printf(ANSI_COLOR_RESET);
@@ -80,7 +91,11 @@ void err(const char* msg, ...){
     vprintf(msg,args);
 }
 
+#ifdef DEBUG
+void warn2(const char* msg, ...){
+#else
 void warn(const char* msg, ...){
+#endif
     printf(ANSI_FONT_BOLD);
     printf(ANSI_COLOR_YELLOW "\n[Warning] ");
     printf(ANSI_COLOR_RESET);

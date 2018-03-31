@@ -67,10 +67,13 @@ void expr_dispose2(Expression *exp){
 void expr_dispose(){
     for(uint64_t i = 0;i < cache_pointer;i++){
       //  if(cache[i] != NULL)
-      if(cache[i]->type == EXPR_CALL){
+      if(cache[i]->type == EXPR_CALL || cache[i]->type == EXPR_DEFINE){
             free(cache[i]->calex.args);
       }
-            free(cache[i]);
+      else if(cache[i]->type == EXPR_CONSTANT && cache[i]->consex.token.type == TOKEN_string){
+            free(cache[i]->consex.sval);
+      }
+        free(cache[i]);
     }
     free(cache);
 }

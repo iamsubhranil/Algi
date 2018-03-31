@@ -18,11 +18,24 @@ void pylw(const char *msg, ...);
 void pcyn(const char *msg, ...);
 void pmgn(const char *msg, ...);
 
+#ifdef DEBUG
 #define dbg(x, ...) dbg2( ANSI_FONT_BOLD "<%s:%d> " ANSI_COLOR_RESET x, __FILE__, __LINE__, ##__VA_ARGS__)
+void dbg2(const char *msg, ...);
+
+#define err(x, ...) err2( ANSI_FONT_BOLD "<%s:%d> " ANSI_COLOR_RESET x, __FILE__, __LINE__, ##__VA_ARGS__)
+void err2(const char *msg, ...);
+
+#define info(x, ...) info2( ANSI_FONT_BOLD "<%s:%d> " ANSI_COLOR_RESET x, __FILE__, __LINE__, ##__VA_ARGS__)
+void info2(const char *msg, ...);
+
+#define warn(x, ...) warn2( ANSI_FONT_BOLD "<%s:%d> " ANSI_COLOR_RESET x, __FILE__, __LINE__, ##__VA_ARGS__)
+void warn2(const char *msg, ...);
+#else
 void dbg2(const char *msg, ...);
 void err(const char *msg, ...);
 void info(const char *msg, ...);
 void warn(const char *msg, ...);
+#endif
 
 void lnerr(const char *msg, Token t, ...);
 void lnwarn(const char *msg, Token t, ...);

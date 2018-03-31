@@ -47,21 +47,26 @@ int main(int argc, char *argv[]){
         exit(EXIT_FAILURE);
     }
     TokenList l = tokens_scan(source);
+#ifdef DEBUG
     lexer_print_tokens(l);
-    
+#endif
     stmt_init();
     expr_init();
     
     BlockStatement s = parse(l);
+#ifdef DEBUG
     blockstmt_print(s);
+#endif
     printf("\n");
     fflush(stdout);
     type_check(s); 
     printf("\n");
-
+    
+    type_dispose();
     blockstmt_dispose(s);
     tokens_free(l);
     free(source);
     stmt_dispose();
+    expr_dispose();
     return 0;
 }

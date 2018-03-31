@@ -30,9 +30,11 @@ typedef struct{
 TokenList tokens_scan(const char *source);
 void tokens_free(TokenList list);
 void token_print_source(Token t, uint8_t reportType);
+void lexer_print_token(Token t, uint8_t printType);
+uint64_t lexer_has_errors();
+
 //#define DEBUG
 
 #ifdef DEBUG
 void lexer_print_tokens(TokenList list);
-void lexer_print_token(Token t, uint8_t printType);
 #endif

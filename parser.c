@@ -166,7 +166,7 @@ static Expression* _primary(){
             Expression *ex = expr_new(EXPR_REFERENCE);
             ex->refex.token = previousToken;
             advance();
-            ex->refex.refer = expression();
+            ex->refex.refer = _primary();
             switch(ex->refex.refer->type){
                 case EXPR_REFERENCE:
                 case EXPR_VARIABLE:
@@ -389,7 +389,6 @@ static Statement* statement_Container(){
 
 static Statement* statement_Return(){
     Statement *ret = stmt_new2(RETURN);
-    ret->rets.token = previousToken;
     Expression *ex = expression();
     ret->rets.value = ex;
     return ret;
@@ -448,9 +447,15 @@ static Statement* statement(){
         switch(presentToken.type){
 #define KEYWORD(name, a) \
             case TOKEN_##name: \
-                               consume2(TOKEN_##name); \
-            return statement_##name(); \
-            break;
+            { \
+            Token bak = presentToken; \
+            consume2(TOKEN_##name); \
+            Statement *s = statement_##name(); \
+            if(s != NULL) \
+                s->token = bak; \
+            return s; \
+            break; \
+        }
 #include "keywords.h"
 #undef KEYWORD
             default:
@@ -476,4 +481,8 @@ BlockStatement parse(TokenList l){
         block_add_statement(&ret, statement());
     }
     return ret;
+}
+
+uint64_t parser_has_errors(){
+    return hasErrors;
 }

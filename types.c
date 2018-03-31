@@ -37,7 +37,7 @@ typedef struct{
     ValueType valType;
 } Declaration;
 
-static const Declaration nullDeclaration = {DECL_UND, {NULL, NULL, 0, 0, 0, TOKEN_unknown}, NULL, VALUE_UND};
+//static const Declaration nullDeclaration = {DECL_UND, {NULL, NULL, 0, 0, 0, TOKEN_unknown}, NULL, VALUE_UND};
 
 typedef enum{
     CONT_GLOBAL,
@@ -122,6 +122,7 @@ bin_type_mismatch:
         case TOKEN_lesser_equal:
         case TOKEN_greater:
         case TOKEN_greater_equal:
+        case TOKEN_not_equal:
             switch(left){
                 case VALUE_INT:
                 case VALUE_GEN:
@@ -136,16 +137,35 @@ bin_type_mismatch:
     }
 }
 
+static void** pointer_cache = NULL;
+static uint64_t cache_index = 0;
+
+static void register_pointer(void *n, void *o){
+    if(o != NULL){
+        for(uint64_t i = 0;i < cache_index;i++){
+            if(pointer_cache[i] == o){
+                pointer_cache[i] = n;
+                return;
+            }
+        }
+    }
+    cache_index++;
+    pointer_cache = (void **)realloc(pointer_cache, sizeof(void *) * cache_index);
+    pointer_cache[cache_index - 1] = n;
+}
+
 static void context_register_declaration(Context *cont, Token name, DeclarationType dType, ValueType vType, Context *dContext){
     Declaration d = {dType, name, dContext, vType};
-    dbg("Registering declaration for : ");
-    lexer_print_token(name, 0);
-    printf(" with valtype %d at context %p", vType, cont);
+    //dbg("Registering declaration for : ");
+    //lexer_print_token(name, 0);
+    //printf(" with valtype %d at context %p", vType, cont);
     if(dContext != NULL)
         dContext->id = cont->count;
     cont->count++;
+    Declaration *bak = cont->declarations;
     cont->declarations = (Declaration *)realloc(cont->declarations, sizeof(Declaration) * cont->count);
     cont->declarations[cont->count - 1] = d;
+    register_pointer(cont->declarations, bak);
 }
 
 static Declaration* context_get_decl(Token identifer, Context *context, uint8_t searchSuper){
@@ -153,18 +173,18 @@ static Declaration* context_get_decl(Token identifer, Context *context, uint8_t 
         //err("No such variable found in the present context!");
         //token_print_source(identifer, 1);
         //hasErrors++;
-        dbg("Not found variable : ");
-        lexer_print_token(identifer, 0);
+        //dbg("Not found variable : ");
+        //lexer_print_token(identifer, 0);
         return NULL;
     }
-    dbg("Searching variable : ");
-    lexer_print_token(identifer, 0);
+    //dbg("Searching variable : ");
+    //lexer_print_token(identifer, 0);
     for(uint64_t i = 0;i < context->count;i++){
         Declaration d = context->declarations[i];
         if(strncmp(d.name.string, identifer.string, identifer.length) == 0){
-            dbg("Found variable : ");
-            lexer_print_token(identifer, 0);
-            dbg("ValType : %d at context %p", d.valType, context);
+            //dbg("Found variable : ");
+            //lexer_print_token(identifer, 0);
+            //dbg("ValType : %d at context %p", d.valType, context);
             return &(context->declarations[i]);
         }
     }
@@ -172,22 +192,6 @@ static Declaration* context_get_decl(Token identifer, Context *context, uint8_t 
         return context_get_decl(identifer, context->superContext, 1);
     }
     return NULL;
-}
-
-static void context_update_declaration_context(Context *context, Token identifer, Context *newContext){
-    if(context == NULL){
-        //err("No such variable found in the present context!");
-        //token_print_source(identifer, 1);
-        //hasErrors++;
-        return ;
-    }
-    for(uint64_t i = 0;i < context->count;i++){
-        Declaration d = context->declarations[i];
-        if(strncmp(d.name.string, identifer.string, identifer.length)){
-            context->declarations[i].context = newContext;
-        }
-    }
-    context_get_decl(identifer, context->superContext, 1);
 }
 
 static ValueType context_get_type(Token identifer, Context *context, uint8_t searchSuper){
@@ -267,6 +271,10 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
                     e->valueType = VALUE_UND;
                     break;
                 }
+                else if(d->valType == VALUE_GEN){
+                    e->valueType = VALUE_GEN;
+                    break;
+                }
                 else{
                     e->valueType = check_expression(e->refex.refer, 
                             d->context, 
@@ -309,6 +317,7 @@ static void type_check_internal(BlockStatement, Context*);
 #define reg_x(x, y, z) \
     static void register_##x(Statement *fStatement, Context *context){ \
         Context *fContext = (Context *)malloc(sizeof(Context)); \
+        register_pointer((void *)fContext, NULL); \
         fContext->superContext = context; \
         fContext->declarations = NULL; \
         fContext->count = 0; \
@@ -323,7 +332,7 @@ reg_x(function, FUNC, UND)
 reg_x(container, CONTAINER, STRUCT)
 
     static void check_statement(Statement *s, Context *context){
-        stmt_print(s);
+        //stmt_print(s);
         switch(s->type){
             case STATEMENT_CONTAINER:
                 check_expression(s->defs.name, context, 0);
@@ -341,12 +350,15 @@ reg_x(container, CONTAINER, STRUCT)
                     if(context->type == CONT_FUNC){
                         ValueType *t = &(context->superContext->declarations[context->id].valType);
                         if(*t == VALUE_UND || *t != VALUE_GEN){
-                            *t = check_expression(s->rets.value, context, 1);
+                            ValueType presentType = check_expression(s->rets.value, context, 1);
+                            if(*t != presentType){
+                                *t = VALUE_GEN;
+                            }
                         }
                     }
                     else{
                         err("Return statement outside of a routine!");
-                        token_print_source(s->rets.token, 1);
+                        token_print_source(s->token, 1);
                         hasErrors++;
                     }
                     break;
@@ -373,8 +385,12 @@ reg_x(container, CONTAINER, STRUCT)
                     }
                     else{
                         d = ref_get_decl(context, s->sets.target);
-                        if(d == NULL){
+                        if(d == NULL && s->sets.target->valueType == VALUE_GEN){
+                            valueType = VALUE_GEN;
+                        }
+                        else if(d == NULL){
                             err("No such member found!");
+                            token_print_source(s->token, 1);
                             hasErrors++;
                             break;
                         }
@@ -382,23 +398,37 @@ reg_x(container, CONTAINER, STRUCT)
                     if(targetType == valueType ||
                             targetType == VALUE_GEN){
                         if(valueType == VALUE_STRUCT){
-                            dbg("Declaration : %p", d);
+                            //dbg("Declaration : %p", d);
                             Declaration *structD = expr_get_decl(context, s->sets.value);
-                            dbg("StructD : %p", structD);
+                            //dbg("StructD : %p", structD);
                             if(structD == NULL){
                                 err("No such routine or container!");
+                                token_print_source(s->token, 1);
+                                hasErrors++;
+                                break;
                             }
-                            d->context = structD->context;
+                            else
+                                d->context = structD->context;
                         }
                         break;
                     }
-                    else if((targetType == VALUE_NUM && (valueType == VALUE_INT || valueType == VALUE_NUM)))
+                    else if(valueType == VALUE_GEN)
+                        break;
+                    else if(valueType == VALUE_INT && targetType == VALUE_NUM)
+                        break;
+                    /*else if((targetType == VALUE_NUM && (valueType == VALUE_INT || 
+                                     valueType == VALUE_GEN)))
                             break;
+                    else if(targetType == VALUE_INT && valueType == VALUE_GEN)
+                        break;
+                    else if(targetType == VALUE_STR && valueType == VALUE_GEN)
+                        break;*/
                     else{
                         //dbg("TargetType : %d\n", (int)targetType);
                         err("Incompatible Set target : ");
                         print_types(2, targetType, valueType);
-                        // TODO: token_print_source
+                        // DONE: token_print_source
+                        token_print_source(s->token, 1);
                         hasErrors++;
                     }
                     break;
@@ -412,7 +442,8 @@ reg_x(container, CONTAINER, STRUCT)
                     ValueType t = check_expression(s->dos.condition, context, 1);
                     if(t != VALUE_BOOL && t != VALUE_GEN){
                         err("Expected Boolean type as condition!");
-                        //TODO: token_print_source
+                        //DONE: token_print_source
+                        token_print_source(s->token, 1);
                         hasErrors++;
                         break;
                     }
@@ -424,7 +455,8 @@ reg_x(container, CONTAINER, STRUCT)
                     ValueType t = check_expression(s->ifs.condition, context, 1);
                     if(t != VALUE_BOOL && t != VALUE_GEN){
                         err("Expected Boolean type as condition!");
-                        //TODO: token_print_source
+                        //DONE: token_print_source
+                        token_print_source(s->token, 1);
                         hasErrors++;
                         break;
                     }
@@ -446,41 +478,59 @@ reg_x(container, CONTAINER, STRUCT)
 static Context globalContext = {CONT_GLOBAL, NULL, 0, 0, NULL};
 
 static void type_check_internal(BlockStatement statements, Context *context){
-    for(uint64_t i = statements.count;i < statements.count;i++){
+    for(uint64_t i = 0;i < statements.count;i++){
         switch(statements.statements[i]->type){
             case STATEMENT_CONTAINER:
                 if(context->type == CONT_FUNC){
-                    err("Unable to declare a container inside a routine!");
-                    // TODO: print both super and child names
+                    err("Unable to declare a container inside a routine ");
+                    // DONE: print both super and child names
+                    lexer_print_token(context->superContext->declarations[context->id].name, 0);
+                    token_print_source(statements.statements[i]->token, 1);
                     hasErrors++;
                     break;
                 }
                 if(context->type == CONT_CONTAINER){
-                    err("Unable to nest container!");
-                    // TODO: print both super and child names
+                    err("Unable to nest container inside ");
+                    // DONE: print both super and child names
+                    lexer_print_token(context->superContext->declarations[context->id].name, 0);
+                    token_print_source(statements.statements[i]->token, 1);
                     hasErrors++;
                     break;
                 }
-                register_container(statements.statements[i], context);
-                break;
+                //register_container(statements.statements[i], context);
+                goto cst;
             case STATEMENT_DEFINE:
                 if(context->type == CONT_FUNC){
-                    err("Unable to nest routines!");
-                    // TODO: print both super and child names
+                    err("Unable to nest routine inside ");
+                    // DONE: print both super and child names
+                    lexer_print_token(context->superContext->declarations[context->id].name, 0);
+                    token_print_source(statements.statements[i]->token, 1);
                     hasErrors++;
                     break;
                 }
-                register_function(statements.statements[i], context);
-                break;
+                //register_function(statements.statements[i], context);
             default:
+cst:
+                check_statement(statements.statements[i], context);
                 break;
         }
     }
-    for(uint64_t i = 0;i < statements.count;i++){
-        check_statement(statements.statements[i], context);
-    }
+   // for(uint64_t i = 0;i < statements.count;i++){
+   //     check_statement(statements.statements[i], context);
+   // }
 }
 
 void type_check(BlockStatement statements){
     type_check_internal(statements, &globalContext);
+}
+
+void type_dispose(){
+    for(uint64_t i = 0;i < cache_index;i++){
+        free(pointer_cache[i]);
+    }
+    free(pointer_cache);
+}
+
+uint64_t type_has_errors(){
+    return hasErrors;
 }
