@@ -207,11 +207,6 @@ static Declaration* context_get_decl(Token identifer, Context *context, uint8_t 
     return NULL;
 }
 
-static ValueType context_get_type(Token identifer, Context *context, uint8_t searchSuper){
-    Declaration *d = context_get_decl(identifer, context, searchSuper);
-    return d == NULL ? VALUE_UND : d->valType;
-}
-
 static Declaration* ref_get_decl(Context *context, Expression *ref){
     if(ref->type == EXPR_VARIABLE){
         return context_get_decl(ref->varex.token, context, 0);
@@ -276,7 +271,7 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
                     hasErrors++;
                     break;
                 }
-                if(e->valueType != VALUE_UND && d != NULL && d->valType != e->valueType){
+                if(e->valueType != VALUE_UND && d != NULL && (int)d->valType != e->valueType){
                     err("Redefining variable with different type!");
                     token_print_source(e->varex.token, 1);
                     err("Previous definition was");
