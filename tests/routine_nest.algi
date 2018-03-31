@@ -1,0 +1,8 @@
+Define NestedRoutine(){
+    Define Child(){
+        String int = 13
+    }
+    Container Child2(){
+        Set j = 293
+    }
+}

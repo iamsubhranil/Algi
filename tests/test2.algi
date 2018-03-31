@@ -3,7 +3,7 @@ String str = "Hey"
 Set s = var + str
 Integer i = Integer(s)
 Structure s = MyStructure("Hello")
-Container MyStruture(Integer val1, String val2){
+Container MyStruture(val1, val2){
     Set mem1 = val1
     Set mem2 = val2
 }

@@ -1,0 +1,15 @@
+Set err = Nope
+Set head = Null
+
+Define InsertAtBeg(Node){
+    Set Node.next = head
+    Set head = Node
+}
+
+Define InsertAtEnd(Node){
+    Set temp = head
+    While(temp.next != Null){
+        Set temp = temp.next
+    }
+    Set temp.next = Node
+}

@@ -1,0 +1,12 @@
+Define MultipleReturn(){
+    Integer iValue = 10
+    String gValue = "Hello World"
+    If(True){
+        Return iValue
+    }
+    Else{
+        Return gValue
+    }
+}
+
+Number ret = MultipleReturn()

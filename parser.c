@@ -253,13 +253,19 @@ static Expression* expression(){
 
 static Statement* statement_Set(){
     Expression *target = expression();
+    if(target->type != EXPR_VARIABLE && target->type != EXPR_REFERENCE){
+        err("Bad Set target");
+        token_print_source(presentToken, 1);
+        hasErrors++;
+        return NULL;
+    }
     if(consume(equal)){
         Expression *value = expression();
         Statement *s = stmt_new2(SET);
         s->sets.target = target;
         s->sets.value = value;
-        if(s->sets.target->type == EXPR_VARIABLE)
-            s->sets.target->valueType = VALUE_GEN;
+        //if(s->sets.target->type == EXPR_VARIABLE)
+            s->sets.target->valueType = VALUE_UND;
         return s;
     }
     return NULL;
@@ -414,6 +420,12 @@ static Statement* statement_##x(){ \
     Statement *s = statement_Set(); \
     if(s != NULL && s->sets.target->type == EXPR_VARIABLE) \
         s->sets.target->valueType = VALUE_##y; \
+    else if(s != NULL){ \
+        err("Unable to specify type of referenced target!"); \
+        token_print_source(s->sets.target->refex.token, 1); \
+        hasErrors++; \
+        return NULL; \
+    } \
     return s; \
 }
 

@@ -1,0 +1,5 @@
+Integer i = 2
+Number n = 32.3
+String s = "Bad"
+String w = "Good"
+Set s = "Ok"

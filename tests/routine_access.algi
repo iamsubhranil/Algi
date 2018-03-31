@@ -1,0 +1,6 @@
+Set i = 9.323
+Define Function(){
+    Integer localVar = i
+}
+Set t = Function()
+Set q = t.localVar

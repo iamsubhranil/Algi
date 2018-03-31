@@ -33,11 +33,13 @@ typedef enum{
 typedef struct{
     DeclarationType declType;
     Token name;
+    uint64_t hash;
     Context *context;
     ValueType valType;
 } Declaration;
 
 //static const Declaration nullDeclaration = {DECL_UND, {NULL, NULL, 0, 0, 0, TOKEN_unknown}, NULL, VALUE_UND};
+
 
 typedef enum{
     CONT_GLOBAL,
@@ -73,6 +75,16 @@ static void print_types(int count, ...){
         count--;
     }
     va_end(types);
+}
+
+static uint64_t hash(const char *str, uint64_t length){
+    uint64_t hash = 5381;
+    uint64_t c = 0;
+//    printf("\nHashing..\n");
+    while (c < length)
+        hash = ((hash << 5) + hash) + str[c++]; /* hash * 33 + c */
+//    printf("\nInput String : [%s] Hash : %lu\n", str, hash);
+    return hash;
 }
 
 static ValueType compare_types(ValueType left, ValueType right, Token op){
@@ -113,7 +125,7 @@ bin_type_mismatch:
                         print_types(2, left, right);
                         token_print_source(op, 1);
                         hasErrors++;
-                        return VALUE_UND;
+                        return VALUE_GEN;
                 }
             } 
         case TOKEN_equal:
@@ -133,7 +145,7 @@ bin_type_mismatch:
                     goto bin_type_mismatch;
             }
         default:
-            return VALUE_UND;
+            return VALUE_GEN;
     }
 }
 
@@ -155,10 +167,10 @@ static void register_pointer(void *n, void *o){
 }
 
 static void context_register_declaration(Context *cont, Token name, DeclarationType dType, ValueType vType, Context *dContext){
-    Declaration d = {dType, name, dContext, vType};
+    Declaration d = {dType, name, hash(name.string, name.length), dContext, vType};
     //dbg("Registering declaration for : ");
     //lexer_print_token(name, 0);
-    //printf(" with valtype %d at context %p", vType, cont);
+    //printf(" with valtype %s at context %p", valueNames[vType], cont);
     if(dContext != NULL)
         dContext->id = cont->count;
     cont->count++;
@@ -179,12 +191,13 @@ static Declaration* context_get_decl(Token identifer, Context *context, uint8_t 
     }
     //dbg("Searching variable : ");
     //lexer_print_token(identifer, 0);
+    uint64_t h = hash(identifer.string, identifer.length);
     for(uint64_t i = 0;i < context->count;i++){
         Declaration d = context->declarations[i];
-        if(strncmp(d.name.string, identifer.string, identifer.length) == 0){
+        if(h == d.hash){
             //dbg("Found variable : ");
             //lexer_print_token(identifer, 0);
-            //dbg("ValType : %d at context %p", d.valType, context);
+            //printf(" with valtype %s at context %p", valueNames[d.valType], context);
             return &(context->declarations[i]);
         }
     }
@@ -220,7 +233,7 @@ static Declaration* expr_get_decl(Context *context, Expression *expr){
 }
 
 static ValueType check_expression(Expression *e, Context *context, uint8_t searchSuper){
-    if(e == NULL)
+    if(e == NULL || context == NULL)
         return VALUE_UND;
     switch(e->type){
         case EXPR_CONSTANT:
@@ -250,8 +263,31 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
             e->valueType = check_expression(e->unex.right, context, searchSuper);
             break;
         case EXPR_VARIABLE:
-            e->valueType = context_get_type(e->varex.token, context, searchSuper);
-            break;
+            {
+                Declaration *d = context_get_decl(e->varex.token, context, searchSuper);
+                /*if(d != NULL){
+                    dbg("Variable ");
+                    lexer_print_token(e->varex.token, 0);
+                    printf(" value type %s decl type %s", valueNames[e->valueType], valueNames[d->valType]);
+                }*/
+                if(d != NULL && d->declType == DECL_FUNC){
+                    err("Unable to assign routine to variable!");
+                    token_print_source(e->varex.token, 1);
+                    hasErrors++;
+                    break;
+                }
+                if(e->valueType != VALUE_UND && d != NULL && d->valType != e->valueType){
+                    err("Redefining variable with different type!");
+                    token_print_source(e->varex.token, 1);
+                    err("Previous definition was");
+                    token_print_source(d->name, 1);
+                    hasErrors++;
+                    break;
+                }
+                if(e->valueType == VALUE_UND)
+                    e->valueType = d == NULL ? VALUE_UND : d->valType;
+                break;
+            }
         case EXPR_REFERENCE:
             {
                 Declaration *d = context_get_decl(e->refex.token, context, 1);
@@ -304,8 +340,16 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
             }
             break;
         case EXPR_BINARY:
-            e->valueType = compare_types(check_expression(e->binex.left, context, searchSuper),
-                    check_expression(e->binex.right, context, searchSuper), e->binex.token);
+            {
+                ValueType left = check_expression(e->binex.left, context, searchSuper);
+                ValueType right = check_expression(e->binex.right, context, searchSuper);
+                if(left == VALUE_UND || right == VALUE_UND){
+                    err("Binary operation contains one or more undefined variables!");
+                    token_print_source(e->binex.token, 1);
+                    hasErrors++;
+                }
+                e->valueType = compare_types(left, right, e->binex.token);
+            }
             break;
     }
     //expr_print(e, 5);
@@ -366,11 +410,24 @@ reg_x(container, CONTAINER, STRUCT)
             case STATEMENT_SET:
                 {
                     // dbg("s->sets.target->valueType : %d", (int)s->sets.target->valueType);
-                    ValueType targetType = (ValueType)(s->sets.target->valueType == VALUE_UND 
-                            ? check_expression(s->sets.target, context, 1)
-                            : s->sets.target->valueType);
+                    /*if(s->sets.target->valueType != VALUE_UND){
+                        ValueType check = check_expression(s->sets.target, context, 1);
+                        if(s->sets.target->valueType != check){
+                            err("Redefining variable with different type!");
+                            token_print_source(s->token, 1);
+                            hasErrors++;
+                            break;
+                        }
+                    }*/
+                    ValueType targetType = check_expression(s->sets.target, context, 1);
                     //dbg("TargetType : %d", (int)targetType);
+                    //if(s->sets.target->valueType != VALUE_UND)
                     ValueType valueType = check_expression(s->sets.value, context, 1);
+                    /*if(valueType != s->sets.target->valueType){
+                      err("Reassigning variable with different type!");
+                      token_print_source(s->token, 1);
+                      hasErrors++;
+                      }*/
                     if(targetType == VALUE_UND){
                         targetType = VALUE_GEN;
                         s->sets.target->valueType = VALUE_GEN;
@@ -417,12 +474,12 @@ reg_x(container, CONTAINER, STRUCT)
                     else if(valueType == VALUE_INT && targetType == VALUE_NUM)
                         break;
                     /*else if((targetType == VALUE_NUM && (valueType == VALUE_INT || 
-                                     valueType == VALUE_GEN)))
-                            break;
-                    else if(targetType == VALUE_INT && valueType == VALUE_GEN)
-                        break;
-                    else if(targetType == VALUE_STR && valueType == VALUE_GEN)
-                        break;*/
+                      valueType == VALUE_GEN)))
+                      break;
+                      else if(targetType == VALUE_INT && valueType == VALUE_GEN)
+                      break;
+                      else if(targetType == VALUE_STR && valueType == VALUE_GEN)
+                      break;*/
                     else{
                         //dbg("TargetType : %d\n", (int)targetType);
                         err("Incompatible Set target : ");
@@ -515,9 +572,9 @@ cst:
                 break;
         }
     }
-   // for(uint64_t i = 0;i < statements.count;i++){
-   //     check_statement(statements.statements[i], context);
-   // }
+    // for(uint64_t i = 0;i < statements.count;i++){
+    //     check_statement(statements.statements[i], context);
+    // }
 }
 
 void type_check(BlockStatement statements){

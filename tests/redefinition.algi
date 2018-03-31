@@ -1,0 +1,18 @@
+
+Set c = "What?"
+If(ret < c){
+    Print "Hoorray!"
+}
+
+String def = "Null"
+Integer def = 2
+
+If(def > whole){
+    Print "Do Something"
+}
+
+Set whole = "2"
+
+If(def > whole){
+    Print "Do something"
+}

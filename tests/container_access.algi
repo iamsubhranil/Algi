@@ -1,0 +1,17 @@
+Container LinkedList(){
+    Set value = Null
+    Set next = Null
+    Integer iVal = 3929
+    Container Another(){
+        Set mem = 0
+    }
+    Define InsertAtFront(){
+        String val = "2"
+        Integer valu = 224
+        Return val
+    }
+}
+
+Structure ll = LinkedList()
+String s = ll.iVal
+Integer i = ll.InsertAtFront()
