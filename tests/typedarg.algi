@@ -1,0 +1,8 @@
+Container MyStructure(Integer arg){
+    String j = arg
+}
+Define MyMethod(String s){
+    String a = Integer(s)
+}
+Set m = Integer m + Number j
+Boolean l = String(m)

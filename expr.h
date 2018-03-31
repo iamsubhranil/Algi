@@ -5,12 +5,11 @@
 
 typedef struct Expression Expression;
 
-typedef struct{
+/*typedef struct{
     Token token;
 } VariableExpression;
-
+*/
 typedef struct{
-    Token token;
     union{
        double dval;
        int64_t ival;
@@ -19,24 +18,20 @@ typedef struct{
 } ConstantExpression;
 
 typedef struct{
-    Token token;
     Expression *left;
     Expression *right;
 } BinaryExpression;
 
 typedef struct{
-    Token token;
     Expression *right;
 } UnaryExpression;
 
 typedef struct{
-    Token token;
     Expression **args;
     uint64_t arity;
 } CallExpression;
 
 typedef struct{
-    Token token;
     Expression *refer;
 } ReferenceExpression;
 
@@ -52,9 +47,10 @@ typedef enum{
 
 struct Expression{
     ExpressionType type;
+    Token token;
     int valueType;
     union{
-        VariableExpression varex;
+        //VariableExpression varex;
         ConstantExpression consex;
         BinaryExpression binex;
         UnaryExpression unex;

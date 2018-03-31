@@ -84,7 +84,7 @@ static Expression* expression();
 static Expression* _primary(){
     if(match(number)){
         Expression *ex = expr_new(EXPR_CONSTANT);
-        ex->consex.token = presentToken;
+        ex->token = presentToken;
         char *error = NULL;
         char *str = (char*)malloc(presentToken.length + 1);
         strncpy(str, presentToken.string, presentToken.length);
@@ -111,7 +111,7 @@ static Expression* _primary(){
     }
     if(match(integer)){
         Expression *ex = expr_new(EXPR_CONSTANT);
-        ex->consex.token = presentToken;
+        ex->token = presentToken;
         char *error = NULL;
         char *str = (char*)malloc(presentToken.length + 1);
         strncpy(str, presentToken.string, presentToken.length);
@@ -139,7 +139,7 @@ static Expression* _primary(){
     }
     if(match(string)){ 
         Expression *ex = expr_new(EXPR_CONSTANT);
-        ex->consex.token = presentToken;
+        ex->token = presentToken;
         ex->consex.sval = (char *)malloc(presentToken.length + 1);
         strncpy(ex->consex.sval, presentToken.string, presentToken.length);
         ex->consex.sval[presentToken.length] = 0;
@@ -147,14 +147,56 @@ static Expression* _primary(){
         ex->valueType = VALUE_STR;
         return ex;
     }
-    if(match(not) || match(minus) || match(Type) 
-            || match(Integer) || match(Number) || match(String)
-            || match(Structure) || match(Boolean)){
+    if(match(not) || match(minus) || match(Type)){
         Expression *ex = expr_new(EXPR_UNARY);
-        ex->unex.token = presentToken;
+        ex->token = presentToken;
         advance();
         ex->unex.right = _primary();
         return ex;
+    }
+    if(match(Integer) || match(Number) || match(String)
+            || match(Structure) || match(Boolean)){
+        Token op = presentToken;
+        advance();
+        if(match(paranthesis_open)){ // cast
+            advance();
+            Expression *ex = expr_new(EXPR_UNARY);
+            ex->token = op;
+            ex->unex.right = expression();
+            consume(paranthesis_close);
+            return ex;
+        }
+        if(match(identifier)){ // typed arguments
+            Expression *ex = expr_new(EXPR_VARIABLE);
+            ex->token = presentToken;
+            advance();
+            switch(op.type){
+                case TOKEN_Integer:
+                    ex->valueType = VALUE_INT;
+                    break;
+                case TOKEN_Number:
+                    ex->valueType = VALUE_NUM;
+                    break;
+                case TOKEN_String:
+                    ex->valueType = VALUE_STR;
+                    break;
+                case TOKEN_Structure:
+                    ex->valueType = VALUE_GEN; // we can't get the structure at compile time,
+                                                // so nevertheless, we have to perform runtime
+                                                // checks
+                    break;
+                case TOKEN_Boolean:
+                    ex->valueType = VALUE_BOOL;
+                    break;
+                default:
+                    break;
+            }
+            return ex;
+        }
+        err("Bad type specification!");
+        token_print_source(op, 1);
+        hasErrors++;
+        return NULL;
     }
    if(match(paranthesis_open)){
         advance();
@@ -166,7 +208,7 @@ static Expression* _primary(){
         advance();
         if(match(dot)){
             Expression *ex = expr_new(EXPR_REFERENCE);
-            ex->refex.token = previousToken;
+            ex->token = previousToken;
             advance();
             ex->refex.refer = _primary();
             switch(ex->refex.refer->type){
@@ -176,7 +218,7 @@ static Expression* _primary(){
                     break;
                 default:
                     err("Bad reference expression!");
-                    token_print_source(ex->refex.token, 1);
+                    token_print_source(ex->token, 1);
                     hasErrors++;
                     break;
             }
@@ -184,7 +226,7 @@ static Expression* _primary(){
         }
         if(match(paranthesis_open)){
             Expression *ex = expr_new(EXPR_CALL);
-            ex->calex.token = previousToken;
+            ex->token = previousToken;
             ex->calex.arity = 0;
             ex->calex.args = NULL;
             advance();
@@ -201,13 +243,14 @@ static Expression* _primary(){
         }
         
         Expression *ex = expr_new(EXPR_VARIABLE);
-        ex->varex.token = previousToken;
+        ex->token = previousToken;
+        ex->valueType = VALUE_UND;
         return ex;
    }
 
    if(match(True) || match(False) || match(Null)){
         Expression *ces = expr_new(EXPR_CONSTANT);
-        ces->consex.token = presentToken;
+        ces->token = presentToken;
         ces->valueType = match(True) || match(False) ? VALUE_BOOL : VALUE_STRUCT;
         advance();
         return ces;
@@ -226,7 +269,7 @@ static Expression* _primary(){
         Expression *ex = _##super(); \
         while(x){ \
             Expression *root = expr_new(EXPR_BINARY); \
-            root->binex.token = presentToken; \
+            root->token = presentToken; \
             advance(); \
             root->binex.left = ex; \
             root->binex.right = _##super(); \
@@ -424,7 +467,7 @@ static Statement* statement_##x(){ \
         s->sets.target->valueType = VALUE_##y; \
     else if(s != NULL){ \
         err("Unable to specify type of referenced target!"); \
-        token_print_source(s->sets.target->refex.token, 1); \
+        token_print_source(s->sets.target->token, 1); \
         hasErrors++; \
         return NULL; \
     } \

@@ -70,7 +70,7 @@ void expr_dispose(){
       if(cache[i]->type == EXPR_CALL || cache[i]->type == EXPR_DEFINE){
             free(cache[i]->calex.args);
       }
-      else if(cache[i]->type == EXPR_CONSTANT && cache[i]->consex.token.type == TOKEN_string){
+      else if(cache[i]->type == EXPR_CONSTANT && cache[i]->token.type == TOKEN_string){
             free(cache[i]->consex.sval);
       }
         free(cache[i]);
@@ -123,13 +123,13 @@ static void expr_print2(Expression *expr){
             printSpace += 5;
             print_space();
             printf("|-- ");
-            switch(expr->consex.token.type){
+            switch(expr->token.type){
                 case TOKEN_number : printf("NumericConstant : %g", expr->consex.dval);
                                     break;
                 case TOKEN_integer: printf("IntegerConstant : %" PRId64, expr->consex.ival);
                                     break;
                 case TOKEN_string : printf("StringConstant : ");
-                                    lexer_print_token(expr->consex.token, 0);
+                                    lexer_print_token(expr->token, 0);
                                     break;
                 case TOKEN_True: printf("BooleanConstant : True");
                                  break;
@@ -142,17 +142,17 @@ static void expr_print2(Expression *expr){
             break;
         case EXPR_VARIABLE:
             printf(" : ");
-            lexer_print_token(expr->varex.token, 0);
+            lexer_print_token(expr->token, 0);
             break;
         case EXPR_UNARY:
             printf(" : ");
-            lexer_print_token(expr->unex.token, 0);
+            lexer_print_token(expr->token, 0);
             printSpace += 5;
             expr_print2(expr->unex.right);
             break;
         case EXPR_BINARY:
             printf(" : ");
-            lexer_print_token(expr->binex.token, 0);
+            lexer_print_token(expr->token, 0);
             printSpace += 5;
             printf("\n");
             print_space();
@@ -172,7 +172,7 @@ static void expr_print2(Expression *expr){
             printSpace += 5;
             print_space();
             printf("|-- Callee : ");
-            lexer_print_token(expr->calex.token, 0);
+            lexer_print_token(expr->token, 0);
             printf("\n");
             print_space();
             printf("|-- Arguments");
@@ -182,7 +182,7 @@ static void expr_print2(Expression *expr){
             break;
         case EXPR_REFERENCE:
             printf(" : ");
-            lexer_print_token(expr->refex.token, 0);
+            lexer_print_token(expr->token, 0);
             printSpace += 5;
             expr_print2(expr->refex.refer);
             break;

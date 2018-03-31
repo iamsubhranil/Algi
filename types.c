@@ -213,10 +213,10 @@ static Declaration* context_get_decl(Token identifer, Context *context, uint8_t 
 
 static Declaration* ref_get_decl(Context *context, Expression *ref){
     if(ref->type == EXPR_VARIABLE){
-        return context_get_decl(ref->varex.token, context, 0);
+        return context_get_decl(ref->token, context, 0);
     }
     if(ref->type == EXPR_REFERENCE){
-        Declaration *d = context_get_decl(ref->refex.token, context, 0);
+        Declaration *d = context_get_decl(ref->token, context, 0);
         if(d == NULL)
             return NULL;
         return ref_get_decl(d->context, ref->refex.refer);
@@ -231,7 +231,7 @@ static Declaration* expr_get_decl(Context *context, Expression *expr){
     if(expr->type == EXPR_REFERENCE)
         return ref_get_decl(context, expr);
     else
-        return context_get_decl(expr->calex.token, context, 1);
+        return context_get_decl(expr->token, context, 1);
 }
 
 static ValueType check_expression(Expression *e, Context *context, uint8_t searchSuper){
@@ -239,7 +239,7 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
         return VALUE_UND;
     switch(e->type){
         case EXPR_CONSTANT:
-            switch(e->consex.token.type){
+            switch(e->token.type){
                 case TOKEN_number:
                     e->valueType = VALUE_NUM;
                     break;
@@ -268,12 +268,12 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
                 case TOKEN_##type: \
                                 if(t != VALUE_##y && t != VALUE_GEN){ \
                                     err("Bad typecast from %s to " #type, valueNames[t]); \
-                                    token_print_source(e->unex.token, 1); \
+                                    token_print_source(e->token, 1); \
                                     hasErrors++; \
                                 } \
                                 e->valueType = VALUE_##y; \
                                 break; 
-                switch(e->unex.token.type){
+                switch(e->token.type){
                     TYPECAST(Integer, INT)
                     TYPECAST(String, STR)
                     TYPECAST(Boolean, BOOL)
@@ -282,7 +282,7 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
                     case TOKEN_Number:
                         if(t != VALUE_INT && t != VALUE_NUM && t != VALUE_GEN){
                             err("Bad typecast from %s to Number!", valueNames[t]);
-                            token_print_source(e->unex.token, 1);
+                            token_print_source(e->token, 1);
                             hasErrors++; 
                         }
                         e->valueType = VALUE_NUM;
@@ -298,7 +298,7 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
             break;
         case EXPR_VARIABLE:
             {
-                Declaration *d = context_get_decl(e->varex.token, context, searchSuper);
+                Declaration *d = context_get_decl(e->token, context, searchSuper);
                 /*if(d != NULL){
                     dbg("Variable ");
                     lexer_print_token(e->varex.token, 0);
@@ -306,13 +306,13 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
                 }*/
                 if(d != NULL && d->declType == DECL_FUNC){
                     err("Unable to assign routine to variable!");
-                    token_print_source(e->varex.token, 1);
+                    token_print_source(e->token, 1);
                     hasErrors++;
                     break;
                 }
                 if(e->valueType != VALUE_UND && d != NULL && (int)d->valType != e->valueType){
                     err("Redefining variable with different type!");
-                    token_print_source(e->varex.token, 1);
+                    token_print_source(e->token, 1);
                     err("Previous definition was");
                     token_print_source(d->name, 1);
                     hasErrors++;
@@ -324,19 +324,19 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
             }
         case EXPR_REFERENCE:
             {
-                Declaration *d = context_get_decl(e->refex.token, context, 1);
+                Declaration *d = context_get_decl(e->token, context, 1);
                 if(d == NULL){
                     err("No such variable : ");
-                    lexer_print_token(e->refex.token, 0);
-                    token_print_source(e->refex.token, 1);
+                    lexer_print_token(e->token, 0);
+                    token_print_source(e->token, 1);
                     hasErrors++;
                     e->valueType = VALUE_UND;
                     break;
                 }
                 else if(d->declType == DECL_FUNC){
                     err("Unable to deference routine : ");
-                    lexer_print_token(e->refex.token, 0);
-                    token_print_source(e->refex.token, 1);
+                    lexer_print_token(e->token, 0);
+                    token_print_source(e->token, 1);
                     hasErrors++;
                     e->valueType = VALUE_UND;
                     break;
@@ -354,16 +354,18 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
             break;
         case EXPR_DEFINE:
             for(uint64_t i = 0;i < e->calex.arity;i++){
-                context_register_declaration(context, e->calex.args[i]->varex.token, DECL_VAR, VALUE_GEN, NULL);
+                ValueType t = (ValueType)e->calex.args[i]->valueType;
+                context_register_declaration(context, e->calex.args[i]->token, DECL_VAR, 
+                        t == VALUE_UND ? VALUE_GEN : t, NULL);
             }
             break;
             // context_register_declaration(context->superContext, e->calex.token, DECL_FUNC, VALUE_UND, context);
         case EXPR_CALL:
             {
-                Declaration *d = context_get_decl(e->calex.token, context, 1);
+                Declaration *d = context_get_decl(e->token, context, 1);
                 if(d == NULL){
                     err("No such routine or container found : ");
-                    lexer_print_token(e->calex.token, 0);
+                    lexer_print_token(e->token, 0);
                     hasErrors++;
                     e->valueType = VALUE_UND;
                 }
@@ -379,10 +381,10 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
                 ValueType right = check_expression(e->binex.right, context, searchSuper);
                 if(left == VALUE_UND || right == VALUE_UND){
                     err("Binary operation contains one or more undefined variables!");
-                    token_print_source(e->binex.token, 1);
+                    token_print_source(e->token, 1);
                     hasErrors++;
                 }
-                e->valueType = compare_types(left, right, e->binex.token);
+                e->valueType = compare_types(left, right, e->token);
             }
             break;
     }
@@ -401,7 +403,7 @@ static void type_check_internal(BlockStatement, Context*);
         fContext->count = 0; \
         fContext->type = CONT_##y; \
         DefineStatement ds = fStatement->defs; \
-        context_register_declaration(context, ds.name->varex.token, DECL_##y, VALUE_##z, fContext); \
+        context_register_declaration(context, ds.name->token, DECL_##y, VALUE_##z, fContext); \
         type_check_internal(ds.body, fContext); \
     }
 
@@ -468,9 +470,9 @@ reg_x(container, CONTAINER, STRUCT)
                     }
                     Declaration *d = NULL;
                     if(s->sets.target->type == EXPR_VARIABLE){
-                        d = context_get_decl(s->sets.target->varex.token, context, 1);
+                        d = context_get_decl(s->sets.target->token, context, 1);
                         if(d == NULL){
-                            context_register_declaration(context, s->sets.target->varex.token, DECL_VAR, targetType, NULL);
+                            context_register_declaration(context, s->sets.target->token, DECL_VAR, targetType, NULL);
                             d = &(context->declarations[context->count - 1]);
                         }
                     }
