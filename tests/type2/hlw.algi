@@ -1,0 +1,16 @@
+Print " Hello World! ", "\nThis is the first statement executed on Algi"
+Print "\nHere are two integers : ", 3, " and ", 7
+Print "\nYou can print float too : ", 3.2442, " and ", 3992.3
+Print "\nYou can print tab as usual : Value\tvalue"
+Print "\nStoring an integer now.."
+Integer val = 3
+Print "\nStored Integer : ", val
+Print "\nStoring a float now.."
+Number val2 = 232.3213
+Print "\nStored float : ", val2
+Print "\nStoring a string now.."
+String s = "Hello World!"
+Print "\nStored string : ", s
+Print "\nStoring a boolean now.."
+Boolean b = True
+Print "\nStored boolean : ", b

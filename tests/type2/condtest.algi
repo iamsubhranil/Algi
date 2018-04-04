@@ -1,0 +1,9 @@
+Integer i = 6
+If(i < 5){
+    Print "\nWe've implemented conditionals too!"
+} Else If(i == 6){
+    Print "\nElse If is working too!"
+}
+Else {
+    Print "\nElse is working"
+}

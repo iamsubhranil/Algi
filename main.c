@@ -3,6 +3,7 @@
 #include "algi_common.h"
 #include "parser.h"
 #include "types.h"
+#include "codegen.h"
 
 #include <unistd.h>
 #include <sys/stat.h>
@@ -57,11 +58,18 @@ int main(int argc, char *argv[]){
 #ifdef DEBUG
     blockstmt_print(s);
 #endif
-    printf("\n");
+    printf("\n\n");
     fflush(stdout);
     type_check(s); 
-    printf("\n");
-    
+    printf("\n\n");
+#ifdef DEBUG
+    blockstmt_print(s);
+#endif
+
+    dbg("Compiling..\n");
+    codegen_compile(s);
+    dbg("Compilation completed!\n");
+
     type_dispose();
     blockstmt_dispose(s);
     tokens_free(l);

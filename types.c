@@ -9,20 +9,6 @@ static uint64_t hasErrors = 0;
 
 typedef struct Context Context;
 
-/*typedef struct{
-  char *name;
-  ValueType varType;
-  } Variable;
-
-  typedef struct{
-  Context *context;
-  } Container;
-
-  typedef struct{
-  Context *context;
-  ValueType returnType;
-  } Function;
-  */
 typedef enum{
     DECL_UND,
     DECL_VAR,
@@ -33,6 +19,7 @@ typedef enum{
 typedef struct{
     DeclarationType declType;
     Token name;
+    uint8_t isGeneric; // Marks the variable as generic
     uint64_t hash;
     Context *context;
     ValueType valType;
@@ -93,7 +80,7 @@ static ValueType compare_types(ValueType left, ValueType right, Token op){
     //    return left;
     //if(left == VALUE_GEN || right == VALUE_GEN)
     //    return VALUE_GEN;
-
+    uint8_t operatorType = 0;
     switch(op.type){
         // case TOKEN_unknown:
         //     {
@@ -105,19 +92,17 @@ static ValueType compare_types(ValueType left, ValueType right, Token op){
         case TOKEN_backslash:
         case TOKEN_cap:
             {
+                if(left == VALUE_UND || right == VALUE_UND)
+                    return VALUE_NUM;
                 switch(left){
                     case VALUE_NUM:
                         if(right == VALUE_NUM || right == VALUE_INT)
-                            return VALUE_NUM;
-                        if(right == VALUE_GEN)
-                            return VALUE_GEN;
+                            return VALUE_NUM; 
                     case VALUE_INT:
-                        if(right == VALUE_NUM || right == VALUE_INT || right == VALUE_GEN)
-                            return right;
-                        goto bin_type_mismatch;
-                    case VALUE_GEN:
-                        if(right == VALUE_NUM || right == VALUE_INT || right == VALUE_GEN)
-                            return VALUE_GEN;
+                        if(right == VALUE_NUM)
+                            return VALUE_NUM;
+                        if(right == VALUE_INT)
+                            return VALUE_INT;
                     default:
 bin_type_mismatch:
                         err("Bad operands for binary operator ");
@@ -126,7 +111,9 @@ bin_type_mismatch:
                         print_types(2, left, right);
                         token_print_source(op, 1);
                         hasErrors++;
-                        return VALUE_GEN;
+                        if(operatorType)
+                            return VALUE_BOOL;
+                        return VALUE_NUM;
                 }
             } 
         case TOKEN_equal_equal:
@@ -134,18 +121,23 @@ bin_type_mismatch:
             if(right == VALUE_BOOL && left == VALUE_BOOL){
                 return VALUE_BOOL;
             }
+            if(right == VALUE_STRUCT && left == VALUE_STRUCT){
+                return VALUE_BOOL;
+            }
         //case TOKEN_equal:
         case TOKEN_lesser:
         case TOKEN_lesser_equal:
         case TOKEN_greater:
         case TOKEN_greater_equal:
+                if(left == VALUE_UND || right == VALUE_UND)
+                    return VALUE_BOOL;
             switch(left){
                 case VALUE_INT:
                 case VALUE_GEN:
-                case VALUE_NUM:
-                    if(right == VALUE_NUM || right == VALUE_INT || right == VALUE_GEN)
+                    if(right == VALUE_NUM || right == VALUE_INT)
                         return VALUE_BOOL;
                 default:
+                    operatorType = 1;
                     goto bin_type_mismatch;
             }
             break;
@@ -173,7 +165,7 @@ static void register_pointer(void *n, void *o){
 
 static void context_register_declaration(Context *cont, Token name, DeclarationType dType, 
         ValueType vType, Context *dContext, uint64_t arity){
-    Declaration d = {dType, name, hash(name.string, name.length), dContext, vType, arity};
+    Declaration d = {dType, name, 0, hash(name.string, name.length), dContext, vType, arity};
     //dbg("Registering declaration for : ");
     //lexer_print_token(name, 0);
     //printf(" with valtype %s at context %p", valueNames[vType], cont);
@@ -244,16 +236,22 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
             switch(e->token.type){
                 case TOKEN_number:
                     e->valueType = VALUE_NUM;
+                   // e->expectedType = VALUE_NUM; // typed constant expressions
+                                                // are always in their correct
+                                                // type
                     break;
                 case TOKEN_integer:
                     e->valueType = VALUE_INT;
+                    //e->expectedType = VALUE_INT;
                     break;
                 case TOKEN_string:
                     e->valueType = VALUE_STR;
+                    //e->expectedType = VALUE_STR;
                     break;
                 case TOKEN_True:
                 case TOKEN_False:
                     e->valueType = VALUE_BOOL;
+                    //e->expectedType = VALUE_BOOL;
                     break;
                 case TOKEN_Null:
                     e->valueType = VALUE_GEN;
@@ -268,7 +266,7 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
                 ValueType t = check_expression(e->unex.right, context, searchSuper);
 #define TYPECAST(type, y) \
                 case TOKEN_##type: \
-                                if(t != VALUE_##y && t != VALUE_GEN){ \
+                                if(t != VALUE_##y){ \
                                     err("Bad typecast from %s to " #type, valueNames[t]); \
                                     token_print_source(e->token, 1); \
                                     hasErrors++; \
@@ -282,15 +280,40 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
                     TYPECAST(Structure, STRUCT)
 #undef TYPECAST
                     case TOKEN_Number:
-                        if(t != VALUE_INT && t != VALUE_NUM && t != VALUE_GEN){
+                        if(t != VALUE_INT && t != VALUE_NUM){
                             err("Bad typecast from %s to Number!", valueNames[t]);
                             token_print_source(e->token, 1);
                             hasErrors++; 
                         }
                         e->valueType = VALUE_NUM;
+                       // e->expectedType = VALUE_NUM;
+                      //  e->unex.right->expectedType = VALUE_NUM;
                         break;
                     case TOKEN_Type:
                         e->valueType = VALUE_INT;
+                       // e->expectedType = VALUE_INT;
+                        break;
+                    case TOKEN_not:
+                        e->valueType = VALUE_BOOL;
+                       // e->expectedType = VALUE_BOOL;
+                       // e->unex.right->expectedType = VALUE_BOOL;
+                        break;
+                    case TOKEN_minus:
+                        if(t == VALUE_INT){
+                            e->valueType = VALUE_INT;
+                          //  e->expectedType = VALUE_INT;
+                        }
+                        else{
+                            e->valueType = VALUE_NUM;
+                           // e->expectedType = VALUE_NUM;
+                        }
+                        if(t != VALUE_INT && t != VALUE_NUM){
+                            err("Expected numeric type as negation expression!");
+                            token_print_source(e->token, 1);
+                            hasErrors++;
+                        }
+                       // else
+                       //     e->unex.right->expectedType = VALUE_NUM;
                         break;
                     default:
                         e->valueType = t;
@@ -312,7 +335,8 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
                     hasErrors++;
                     break;
                 }
-                if(e->valueType != VALUE_UND && d != NULL && (int)d->valType != e->valueType){
+                if(e->valueType != VALUE_UND && d != NULL
+                        && (int)d->valType != e->valueType){
                     err("Redefining variable with different type!");
                     token_print_source(e->token, 1);
                     err("Previous definition was");
@@ -320,8 +344,11 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
                     hasErrors++;
                     break;
                 }
-                if(e->valueType == VALUE_UND)
+                if(e->valueType == VALUE_UND){
                     e->valueType = d == NULL ? VALUE_UND : d->valType;
+                   // e->expectedType = e->valueType
+                   e->hash = d->hash;
+                }
                 break;
             }
         case EXPR_REFERENCE:
@@ -343,15 +370,17 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
                     e->valueType = VALUE_UND;
                     break;
                 }
-                else if(d->valType == VALUE_GEN){
+               /* else if(d->valType == VALUE_GEN){
                     e->valueType = VALUE_GEN;
+                   // e->expectedType = VALUE_STRUCT;
                     break;
                 }
                 else{
                     e->valueType = check_expression(e->refex.refer, 
                             d->context, 
                             0);
-                }
+                    e->expectedType = e->valueType;
+                }*/
             }
             break;
         case EXPR_DEFINE:
@@ -359,6 +388,8 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
                 ValueType t = (ValueType)e->calex.args[i]->valueType;
                 context_register_declaration(context, e->calex.args[i]->token, DECL_VAR, 
                         t == VALUE_UND ? VALUE_GEN : t, NULL, 0);
+                e->calex.args[i]->valueType = t == VALUE_UND ? VALUE_GEN : t;
+                e->calex.args[i]->expectedType = t == VALUE_UND ? VALUE_GEN : t;
             }
             break;
             // context_register_declaration(context->superContext, e->calex.token, DECL_FUNC, VALUE_UND, context);
@@ -387,6 +418,7 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
                         ValueType t = d->context->declarations[i].valType;
                         ValueType s = check_expression(e->calex.args[i], context, 1);
                         //dbg("ArgumentType : %s ParameterType : %s", valueNames[t], valueNames[s]);
+                        e->calex.args[i]->expectedType = t;
                         if(t != s && s != VALUE_GEN && t != VALUE_GEN){
                             err("Argument type mismatch for ");
                             lexer_print_token(d->context->declarations[i].name, 0);
@@ -398,8 +430,10 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
                         }
                     }
                 }
-                if(d != NULL && d->declType == DECL_CONTAINER)
+                if(d != NULL && d->declType == DECL_CONTAINER){
                     e->valueType = VALUE_STRUCT;
+                    e->expectedType = VALUE_STRUCT;
+                }
                 else
                     e->valueType = d->valType;
             }
@@ -408,12 +442,66 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
             {
                 ValueType left = check_expression(e->binex.left, context, searchSuper);
                 ValueType right = check_expression(e->binex.right, context, searchSuper);
+                switch(e->token.type){ 
+                    case TOKEN_equal_equal:
+                    case TOKEN_not_equal:
+                      /*  if(right == VALUE_BOOL && left == VALUE_GEN){
+                            e->binex.left->expectedType = VALUE_BOOL;
+                            break;
+                        }
+                        else if(left == VALUE_BOOL && right == VALUE_GEN){
+                            e->binex.right->expectedType = VALUE_BOOL;
+                            break;
+                        }
+                        else if(left == VALUE_STRUCT && right == VALUE_GEN){
+                            e->binex.right->expectedType = VALUE_STRUCT;
+                            break;
+                        }
+                        else if(right == VALUE_STRUCT && left == VALUE_GEN){
+                            e->binex.left->expectedType = VALUE_STRUCT;
+                            break;
+                        }
+                        */
+                    case TOKEN_plus:
+                    case TOKEN_minus:
+                    case TOKEN_star:
+                    case TOKEN_backslash:
+                    case TOKEN_greater:
+                    case TOKEN_greater_equal:
+                    case TOKEN_lesser:
+                    case TOKEN_lesser_equal:
+                        /*
+                        if(left == VALUE_GEN){
+                            e->binex.left->expectedType = VALUE_NUM;
+                        }
+                        if(right == VALUE_GEN){
+                            e->binex.right->expectedType = VALUE_NUM;
+                        } 
+                        break;
+                        */
+                    default:
+                        break;
+                }
                 if(left == VALUE_UND || right == VALUE_UND){
-                    err("Binary operation contains one or more undefined variables!");
-                    token_print_source(e->token, 1);
-                    hasErrors++;
+                    //err("Binary operation contains one or more undefined variables!");
+                    //token_print_source(e->token, 1);
+                    if(left == VALUE_UND){
+                        err("Variable ");
+                        lexer_print_token(e->binex.left->token, 0);
+                        printf(" undefined!");
+                        token_print_source(e->binex.left->token, 1);
+                        hasErrors++;
+                    }
+                    if(right == VALUE_UND){
+                        err("Variable ");
+                        lexer_print_token(e->binex.right->token, 0);
+                        printf(" undefined!");
+                        token_print_source(e->binex.right->token, 1);
+                        hasErrors++;
+                    }
                 }
                 e->valueType = compare_types(left, right, e->token);
+               // e->expectedType = e->valueType;
             }
             break;
     }
@@ -483,36 +571,29 @@ reg_x(container, CONTAINER, STRUCT)
             case STATEMENT_SET:
                 {
                     // dbg("s->sets.target->valueType : %d", (int)s->sets.target->valueType);
-                    /*if(s->sets.target->valueType != VALUE_UND){
-                        ValueType check = check_expression(s->sets.target, context, 1);
-                        if(s->sets.target->valueType != check){
-                            err("Redefining variable with different type!");
-                            token_print_source(s->token, 1);
-                            hasErrors++;
-                            break;
-                        }
-                    }*/
                     ValueType targetType = check_expression(s->sets.target, context, 1);
-                    //dbg("TargetType : %d", (int)targetType);
-                    //if(s->sets.target->valueType != VALUE_UND)
+                    //dbg("TargetType : %s", valueNames[targetType]);
                     ValueType valueType = check_expression(s->sets.value, context, 1);
-                    /*if(valueType != s->sets.target->valueType){
-                      err("Reassigning variable with different type!");
-                      token_print_source(s->token, 1);
-                      hasErrors++;
-                      }*/
+                    //dbg("ValueType : %s", valueNames[valueType]);
                     if(targetType == VALUE_UND){
                         targetType = VALUE_GEN;
-                        s->sets.target->valueType = VALUE_GEN;
+                       // s->sets.target->valueType = VALUE_GEN;
+                        s->sets.target->expectedType = VALUE_GEN;
                     }
                     Declaration *d = NULL;
                     if(s->sets.target->type == EXPR_VARIABLE){
                         d = context_get_decl(s->sets.target->token, context, 1);
                         if(d == NULL){
                             context_register_declaration(context, s->sets.target->token, DECL_VAR, targetType, NULL, 0);
+                            s->sets.target->hash = hash(s->sets.target->token.string, s->sets.target->token.length);
                             d = &(context->declarations[context->count - 1]);
+                            if(s->sets.target->expectedType == VALUE_GEN)
+                                d->isGeneric = 1;
                         }
+                        //else
+                        //    s->sets.target->hash = d->hash;
                     }
+                    // Disabled for now
                     else{
                         d = ref_get_decl(context, s->sets.target);
                         if(d == NULL && s->sets.target->valueType == VALUE_GEN){
@@ -526,7 +607,7 @@ reg_x(container, CONTAINER, STRUCT)
                         }
                     }
                     if(targetType == valueType ||
-                            targetType == VALUE_GEN){
+                            d->isGeneric){
                         if(valueType == VALUE_STRUCT){
                             //dbg("Declaration : %p", d);
                             Declaration *structD = expr_get_decl(context, s->sets.value);
@@ -540,10 +621,12 @@ reg_x(container, CONTAINER, STRUCT)
                             else
                                 d->context = structD->context;
                         }
+                        s->sets.target->valueType = valueType;
+                        d->valType = valueType;
                         break;
                     }
-                    else if(valueType == VALUE_GEN)
-                        break;
+                    //else if(valueType == VALUE_GEN)
+                    //    break;
                     else if(valueType == VALUE_INT && targetType == VALUE_NUM)
                         break;
                     /*else if((targetType == VALUE_NUM && (valueType == VALUE_INT || 
@@ -569,7 +652,7 @@ reg_x(container, CONTAINER, STRUCT)
             case STATEMENT_WHILE:
                 {
                     ValueType t = check_expression(s->dos.condition, context, 1);
-                    if(t != VALUE_BOOL && t != VALUE_GEN){
+                    if(t != VALUE_BOOL){
                         err("Expected Boolean type as condition!");
                         //DONE: token_print_source
                         token_print_source(s->token, 1);
@@ -582,7 +665,7 @@ reg_x(container, CONTAINER, STRUCT)
             case STATEMENT_IF:
                 {
                     ValueType t = check_expression(s->ifs.condition, context, 1);
-                    if(t != VALUE_BOOL && t != VALUE_GEN){
+                    if(t != VALUE_BOOL){
                         err("Expected Boolean type as condition!");
                         //DONE: token_print_source
                         token_print_source(s->token, 1);

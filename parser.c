@@ -204,46 +204,10 @@ static Expression* _primary(){
         consume(paranthesis_close);
         return ex;
    }
-   if(match(identifier)){
-        advance();
-        if(match(dot)){
-            Expression *ex = expr_new(EXPR_REFERENCE);
-            ex->token = previousToken;
-            advance();
-            ex->refex.refer = _primary();
-            switch(ex->refex.refer->type){
-                case EXPR_REFERENCE:
-                case EXPR_VARIABLE:
-                case EXPR_CALL:
-                    break;
-                default:
-                    err("Bad reference expression!");
-                    token_print_source(ex->token, 1);
-                    hasErrors++;
-                    break;
-            }
-            return ex;
-        }
-        if(match(paranthesis_open)){
-            Expression *ex = expr_new(EXPR_CALL);
-            ex->token = previousToken;
-            ex->calex.arity = 0;
-            ex->calex.args = NULL;
-            advance();
-            while(!match(paranthesis_close) && !match(eof)){
-                if(ex->calex.arity != 0){
-                    consume(comma);
-                }
-                ex->calex.arity++;
-                ex->calex.args = (Expression **)realloc(ex->calex.args, sizeof(Expression *) * ex->calex.arity);
-                ex->calex.args[ex->calex.arity - 1] = expression();
-            }
-            consume(paranthesis_close);
-            return ex;
-        }
-        
+   if(match(identifier)){ 
         Expression *ex = expr_new(EXPR_VARIABLE);
-        ex->token = previousToken;
+        ex->token = presentToken;
+        advance();
         ex->valueType = VALUE_UND;
         return ex;
    }
@@ -264,6 +228,50 @@ static Expression* _primary(){
     return NULL;
 }
 
+static Expression* _call(){
+    Expression* e = _primary();
+    /* Disbaled for now
+    while(e->type != EXPR_CONSTANT && (match(dot) || match(paranthesis_open))){
+        if(match(dot)){
+            Expression *ex = expr_new(EXPR_REFERENCE);
+            ex->refex.parent = e;
+            advance();
+            ex->refex.refer = _primary();
+            switch(ex->refex.refer->type){
+                case EXPR_REFERENCE:
+                case EXPR_VARIABLE:
+                case EXPR_CALL:
+                    break;
+                default:
+                    err("Bad reference expression!");
+                    token_print_source(ex->token, 1);
+                    hasErrors++;
+                    break;
+            }
+           e = ex; 
+        }
+        else{
+            Expression *ex = expr_new(EXPR_CALL);
+            ex->token = e->token;
+            ex->calex.arity = 0;
+            ex->calex.callee = e;
+            ex->calex.args = NULL;
+            advance();
+            while(!match(paranthesis_close) && !match(eof)){
+                if(ex->calex.arity != 0){
+                    consume(comma);
+                }
+                ex->calex.arity++;
+                ex->calex.args = (Expression **)realloc(ex->calex.args, sizeof(Expression *) * ex->calex.arity);
+                ex->calex.args[ex->calex.arity - 1] = expression();
+            }
+            consume(paranthesis_close);
+            e = ex;
+        }
+    }*/
+    return e;
+}
+
 #define exp2(name, super, x) \
     static Expression* _##name(){ \
         Expression *ex = _##super(); \
@@ -278,7 +286,7 @@ static Expression* _primary(){
         return ex; \
     }
 
-exp2(tothepower, primary, (match(cap)))
+exp2(tothepower, call, (match(cap)))
 
 exp2(multiplication, tothepower, (match(star) || match(backslash)))
 
@@ -401,6 +409,8 @@ static Statement* statement_Do(){
     return wh;
 }
 
+/*
+
 static Statement* statement_Define(){
     Expression *name = expression(); 
     if(name->type == EXPR_CALL){
@@ -409,15 +419,15 @@ static Statement* statement_Define(){
         def->defs.name = name;
        // def->defs.arguments = NULL;
        // def->defs.arity = 0;
-       /* consume(paranthesis_open);
-        if(!match(paranthesis_close)){
-            def->defs.arguments = add_expression(def->defs.arguments, &def->defs.arity, expression());
-            while(match(comma)){
-                advance();
-                def->defs.arguments = add_expression(def->defs.arguments, &def->defs.arity, expression());
-            }
-        }
-        consume(paranthesis_close); */
+       // consume(paranthesis_open);
+      //  if(!match(paranthesis_close)){
+       //     def->defs.arguments = add_expression(def->defs.arguments, &def->defs.arity, expression());
+       //     while(match(comma)){
+       //         advance();
+       //         def->defs.arguments = add_expression(def->defs.arguments, &def->defs.arity, expression());
+       //     }
+       // }
+       // consume(paranthesis_close);
         def->defs.body = statement_block();
 
         return def;
@@ -444,6 +454,7 @@ static Statement* statement_Return(){
     ret->rets.value = ex;
     return ret;
 }
+*/
 
 #define unexcons(x) \
 static Statement* statement_##x(){ \
@@ -484,6 +495,7 @@ deftype(Boolean, BOOL)
 
 deftype(Structure, STRUCT)
 
+/*
 static Statement* statement_Call(){
     Expression *callee = expression();
     if(callee->type == EXPR_CALL){
@@ -499,7 +511,7 @@ static Statement* statement_Call(){
         return NULL;
     }
 }
-
+*/
 static Statement* statement(){ 
         switch(presentToken.type){
 #define KEYWORD(name, a) \

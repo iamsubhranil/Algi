@@ -36,6 +36,7 @@ typedef struct{
     BlockStatement statements;
 } DoStatement;
 
+
 typedef struct{
     Expression *name;
     BlockStatement body;
@@ -60,10 +61,13 @@ typedef enum{
     STATEMENT_IF,
     STATEMENT_WHILE,
     STATEMENT_DO,
+
+    // Disabled for now
     STATEMENT_RETURN,
     STATEMENT_DEFINE,
     STATEMENT_CONTAINER,
     STATEMENT_CALL
+    
 } StatementType;
 
 struct Statement{
@@ -75,10 +79,13 @@ struct Statement{
         IfStatement ifs;
         WhileStatement whiles;
         DoStatement dos;
+        
+        // Disabled for now
         ReturnStatement rets;
         DefineStatement defs;
         ContainerStatement cons;
         CallStatement calls;
+        
     };
 };
 

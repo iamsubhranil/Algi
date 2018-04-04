@@ -6,10 +6,13 @@ KEYWORD(Else, 4)
 KEYWORD(While, 5)
 //KEYWORD(EndWhile, 8)
 KEYWORD(Do, 2)
-KEYWORD(Define, 6)
-KEYWORD(Return, 6)
-KEYWORD(Call, 4)
-KEYWORD(Container, 9)
+
+/* Will be reimplemented soon
+ * KEYWORD(Define, 6)
+ * KEYWORD(Return, 6)
+ * KEYWORD(Call, 4)
+ * KEYWORD(Container, 9) */
+
 KEYWORD(True, 4)
 KEYWORD(False, 5)
 KEYWORD(Null, 4)

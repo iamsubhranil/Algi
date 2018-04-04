@@ -33,6 +33,7 @@ Expression* expr_new(ExpressionType type){
    Expression* e = expr_new2();
    e->type = type;
    e->valueType = 0;
+   e->expectedType = -1;
    return e;
 }
 
@@ -115,6 +116,8 @@ static void expr_print2(Expression *expr){
             printf("|-- %s", exprString[expr->type]);
         if(expr->valueType != 0)
             printf(" (Type %d)", expr->valueType);
+        if(expr->expectedType != -1)
+            printf(" (Expected %d)", expr->expectedType);
     }
     uint64_t bak = printSpace;
     switch(expr->type){
@@ -172,7 +175,9 @@ static void expr_print2(Expression *expr){
             printSpace += 5;
             print_space();
             printf("|-- Callee : ");
-            lexer_print_token(expr->token, 0);
+            printSpace += 5;
+            expr_print2(expr->calex.callee);
+            printSpace -= 5;
             printf("\n");
             print_space();
             printf("|-- Arguments");
@@ -181,8 +186,16 @@ static void expr_print2(Expression *expr){
                 expr_print2(expr->calex.args[i]);
             break;
         case EXPR_REFERENCE:
-            printf(" : ");
-            lexer_print_token(expr->token, 0);
+            printf("\n");
+            printSpace += 5;
+            print_space();
+            printf("|-- Parent");
+            printSpace += 5;
+            expr_print2(expr->refex.parent); 
+            printSpace -= 5;
+            printf("\n");
+            print_space();
+            printf("|-- Reference");
             printSpace += 5;
             expr_print2(expr->refex.refer);
             break;
