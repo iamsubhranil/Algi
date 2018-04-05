@@ -8,6 +8,13 @@
 #include <llvm-c/Analysis.h>
 #include <llvm-c/ExecutionEngine.h>
 #include <llvm-c/OrcBindings.h>
+
+// Optimizations
+#include <llvm-c/Transforms/IPO.h>
+#include <llvm-c/Transforms/PassManagerBuilder.h>
+#include <llvm-c/Transforms/Scalar.h>
+#include <llvm-c/Transforms/Vectorize.h>
+
 #include <string.h>
 
 #include "expr.h"
@@ -458,8 +465,32 @@ void codegen_compile(BlockStatement bs){
         exit(EXIT_FAILURE);
     }
 
-    dbg("\n");
+    LLVMSetModuleDataLayout(module, LLVMGetExecutionEngineTargetData(engine));
+      
+    // Optimization
+    LLVMPassManagerBuilderRef pmb = LLVMPassManagerBuilderCreate();
+    LLVMPassManagerBuilderSetOptLevel(pmb, 3);
+    LLVMPassManagerRef optimizer = LLVMCreatePassManager();
+    //LLVMTargetMachineRef machine = LLVMGetExecutionEngineTargetMachine(engine);
+   
+    //LLVMAddMemCpyOptPass(optimizer);
+    //LLVMAddCFGSimplificationPass(optimizer);
+    //LLVMAddConstantMergePass(optimizer);
+    //LLVMAddBasicAliasAnalysisPass(optimizer);
+    //LLVMAddInstructionCombiningPass(optimizer);
+    //LLVMAddGVNPass(optimizer);
+    //LLVMAddPromoteMemoryToRegisterPass(optimizer);
 
+    LLVMPassManagerBuilderPopulateModulePassManager(pmb, optimizer);
+    LLVMRunPassManager(optimizer, module);
+    LLVMDisposePassManager(optimizer);
+    LLVMPassManagerBuilderDispose(pmb);
+    //LLVMAddAnalysisPasses(machine, optimizer);
+
+    dbg("Optimized code \n");
+    LLVMDumpModule(module);
+
+    dbg("Running program\n");
     void(*Main)(void) = (void (*)(void))LLVMGetFunctionAddress(engine, "Main");
     Main();
 
