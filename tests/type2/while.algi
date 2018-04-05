@@ -1,0 +1,10 @@
+Integer i = 0
+Integer j = 0
+While(i < 1000000000){
+    If(i == 8382){
+        Set j = j + 1
+    }
+    Set i = i + 1
+}
+Print "\nj is ", j
+Print "\ni is ", i

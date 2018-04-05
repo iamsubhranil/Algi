@@ -22,6 +22,7 @@
 #include "types.h"
 #include "display.h"
 #include "codegen.h"
+#include "timer.h"
 
 typedef struct{
     LLVMValueRef ref;
@@ -42,8 +43,18 @@ static LLVMValueRef get_generic_structure(){
 //    LLVMValueRef 
 //}
 
+static uint64_t hash(const char *str, uint64_t length){
+    uint64_t hash = 5381;
+    uint64_t c = 0;
+//    printf("\nHashing..\n");
+    while (c < length)
+        hash = ((hash << 5) + hash) + str[c++]; /* hash * 33 + c */
+//    printf("\nInput String : [%s] Hash : %lu\n", str, hash);
+    return hash;
+}
+
 static LLVMValueRef get_variable_ref(Expression *varE, uint8_t declareIfNotfound, LLVMBuilderRef builder){
-    //varE->hash = hash(varE->token.string, varE->token.length);
+    varE->hash = hash(varE->token.string, varE->token.length);
     dbg("Searching for hash %ld", varE->hash);
     for(uint64_t i = 0;i < variableRefPointer;i++){
 
@@ -283,7 +294,7 @@ static LLVMValueRef statement_compile(Statement *s, LLVMBuilderRef builder, LLVM
 
                 LLVMBuildBr(builder, mergeBB);
 
-                thenBB = LLVMGetInsertBlock(builder);
+                //thenBB = LLVMGetInsertBlock(builder);
 
                 //LLVMInsertBasicBlock(elseBB, "else");
                 LLVMPositionBuilderAtEnd(builder, elseBB);
@@ -296,7 +307,7 @@ static LLVMValueRef statement_compile(Statement *s, LLVMBuilderRef builder, LLVM
 
                 LLVMBuildBr(builder, mergeBB);
 
-                elseBB = LLVMGetInsertBlock(builder);
+                //elseBB = LLVMGetInsertBlock(builder);
 
                 //LLVMInsertBasicBlock(mergeBB, "merge");
                 LLVMPositionBuilderAtEnd(builder, mergeBB);
@@ -308,6 +319,35 @@ static LLVMValueRef statement_compile(Statement *s, LLVMBuilderRef builder, LLVM
                 return LLVMConstInt(LLVMInt1Type(), 0, 0);
             }
             break;
+        case STATEMENT_WHILE:
+            {
+                
+                LLVMValueRef parent = LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder));
+                LLVMBasicBlockRef wCond = LLVMAppendBasicBlock(parent, "wcond");
+                LLVMBuildBr(builder, wCond);
+                LLVMPositionBuilderAtEnd(builder, wCond);
+
+                LLVMValueRef condV = expr_compile(s->whiles.condition, context, builder, module);
+
+                LLVMBasicBlockRef wbody = LLVMAppendBasicBlock(parent, "wbody");
+                LLVMBasicBlockRef cont = LLVMAppendBasicBlock(parent, "wcont");
+
+                LLVMBuildCondBr(builder, condV, wbody, cont);
+
+                LLVMPositionBuilderAtEnd(builder, wbody);
+
+                blockstmt_compile(s->whiles.statements, builder, module, context, 0);
+
+                LLVMBuildBr(builder, wCond);
+                //LLVMBuildCondBr(builder, condV, wbody, cont);
+
+                LLVMPositionBuilderAtEnd(builder, cont);
+                //LLVMBuildRetVoid(builder);
+
+                //LLVMBuildBr(builder, parent);
+
+                return LLVMConstInt(LLVMInt1Type(), 0, 0);
+            }
         case STATEMENT_PRINT:
             {
                 LLVMValueRef params[2];
@@ -408,8 +448,10 @@ static LLVMValueRef blockstmt_compile(BlockStatement s, LLVMBuilderRef builder, 
             bb = LLVMAppendBasicBlock(
                     bbp, "block");
         }
-        else
+        else{
+            dbg("Creating new block");
             bb = LLVMAppendBasicBlock(func, "block");
+        }
         LLVMPositionBuilderAtEnd(builder, bb);
     }
     LLVMValueRef ret;
@@ -429,24 +471,34 @@ void codegen_compile(BlockStatement bs){
     LLVMTypeRef ret_type = LLVMFunctionType(LLVMVoidType(), NULL, 0, 0);
 
     func = LLVMAddFunction(module, "Main", ret_type);
+
     LLVMBuilderRef builder = LLVMCreateBuilder();
     LLVMContextRef context = LLVMContextCreate();
 
+    //LLVMPositionBuilderAtEnd(builder, LLVMGetEntryBasicBlock(func));
     // blockstmt_compile(bs, builder, module, context);
 
     //LLVMBasicBlockRef coreBB = LLVMAppendBasicBlock(entry, "entry");
     // LLVMPositionBuilderAtEnd(builder, coreBB);
+    
+    timer_start("Compilation");
 
     blockstmt_compile(bs, builder, module, context, 1);
     //LLVMBuildRetVoid(builder);
 
+    timer_end();
+
     char *err = NULL;
+    dbg("Compiled code\n");
     LLVMDumpModule(module);
     LLVMVerifyModule(module, LLVMPrintMessageAction, &err);
     LLVMDisposeMessage(err);
 
     LLVMExecutionEngineRef engine;
     err = NULL;
+
+    timer_start("Initializing JIT");
+
     LLVMLinkInMCJIT();
 
     LLVMInitializeNativeTarget();
@@ -467,9 +519,12 @@ void codegen_compile(BlockStatement bs){
 
     LLVMSetModuleDataLayout(module, LLVMGetExecutionEngineTargetData(engine));
       
+    timer_end();
+
+    timer_start("Optimization");
     // Optimization
     LLVMPassManagerBuilderRef pmb = LLVMPassManagerBuilderCreate();
-    LLVMPassManagerBuilderSetOptLevel(pmb, 3);
+    LLVMPassManagerBuilderSetOptLevel(pmb, 2);
     LLVMPassManagerRef optimizer = LLVMCreatePassManager();
     //LLVMTargetMachineRef machine = LLVMGetExecutionEngineTargetMachine(engine);
    
@@ -483,6 +538,7 @@ void codegen_compile(BlockStatement bs){
 
     LLVMPassManagerBuilderPopulateModulePassManager(pmb, optimizer);
     LLVMRunPassManager(optimizer, module);
+    timer_end();
     LLVMDisposePassManager(optimizer);
     LLVMPassManagerBuilderDispose(pmb);
     //LLVMAddAnalysisPasses(machine, optimizer);
@@ -490,65 +546,20 @@ void codegen_compile(BlockStatement bs){
     dbg("Optimized code \n");
     LLVMDumpModule(module);
 
-    dbg("Running program\n");
-    void(*Main)(void) = (void (*)(void))LLVMGetFunctionAddress(engine, "Main");
-    Main();
+    dbg("Press any key to run the program");
+    dbg("Press C to cancel : ");
+    char c = getc(stdin);
+    if(c != 'c' && c != 'C'){
+        timer_start("Execution");
+        void(*Main)(void) = (void (*)(void))LLVMGetFunctionAddress(engine, "Main");
+        Main();
+        timer_end();
+    }
+    else
+        warn("Run cancelled!");
 
     LLVMDisposeBuilder(builder);
     LLVMDisposeExecutionEngine(engine);
     LLVMContextDispose(context);
     LLVMShutdown();
-}
-
-int main2(int argc, char *argv[]){
-    LLVMModuleRef mod = LLVMModuleCreateWithName("MyModule");
-    LLVMTypeRef params[] = {LLVMInt32Type(), LLVMInt32Type()};
-    LLVMTypeRef ret_type = LLVMFunctionType(LLVMInt32Type(), params, 2, 0);
-    LLVMValueRef sum = LLVMAddFunction(mod, "sum", ret_type);
-    LLVMBasicBlockRef entry = LLVMAppendBasicBlock(sum, "entry");
-    LLVMBuilderRef builder = LLVMCreateBuilder();
-    LLVMPositionBuilderAtEnd(builder, entry);
-    LLVMValueRef tmp = LLVMBuildAdd(builder, LLVMGetParam(sum, 0), LLVMGetParam(sum, 1), "tmp");
-    LLVMBuildRet(builder, tmp);
-
-    char *err = NULL;
-    LLVMVerifyModule(mod, LLVMAbortProcessAction, &err);
-    LLVMDisposeMessage(err);
-
-    LLVMExecutionEngineRef engine;
-    err = NULL;
-    LLVMLinkInMCJIT();
-
-    LLVMInitializeNativeTarget();
-    LLVMInitializeNativeAsmParser();
-    LLVMInitializeNativeAsmPrinter();
-
-    if(LLVMCreateExecutionEngineForModule(&engine, mod, &err) != 0){
-        printf("\nFailed to create execution engine!\n");
-        abort();
-    }
-    if(err){
-        printf("\nError : %s\n", err);
-        LLVMDisposeMessage(err);
-        exit(EXIT_FAILURE);
-    }
-    if(argc < 3){
-        printf("\nError!\nUsage : %s x y\n", argv[0]);
-        exit(EXIT_FAILURE);
-    }
-    long long x = strtoll(argv[1], NULL, 10);
-    long long y = strtoll(argv[2], NULL, 10);
-
-    /*LLVMGenericValueRef args[] = {
-      LLVMCreateGenericValueOfInt(LLVMInt32Type(), x, 0),
-      LLVMCreateGenericValueOfInt(LLVMInt32Type(), y, 0)
-      };*/
-
-    int(*function)(int, int) = (int (*)(int, int))LLVMGetFunctionAddress(engine, "sum");
-
-    printf("\nResult : %d\n", function(x, y));
-
-    LLVMDisposeBuilder(builder);
-    LLVMDisposeExecutionEngine(engine);
-    return 0;
 }
