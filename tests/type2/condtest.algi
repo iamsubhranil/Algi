@@ -7,3 +7,7 @@ If(i < 5){
 Else {
     Print "\nElse is working"
 }
+Number n = 43.42
+If(n < 43.5){
+    Print "\nFloating conditions working too!"
+}
