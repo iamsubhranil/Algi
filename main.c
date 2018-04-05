@@ -4,6 +4,7 @@
 #include "parser.h"
 #include "types.h"
 #include "codegen.h"
+#include "timer.h"
 
 #include <unistd.h>
 #include <sys/stat.h>
@@ -47,28 +48,37 @@ int main(int argc, char *argv[]){
     if(source == NULL){
         exit(EXIT_FAILURE);
     }
+#ifdef DEBUG
+    timer_start("Lexing");
+#endif
     TokenList l = tokens_scan(source);
 #ifdef DEBUG
+    timer_end();
     lexer_print_tokens(l);
 #endif
     stmt_init();
     expr_init();
-    
+#ifdef DEBUG
+    timer_start("Parsing");
+#endif
     BlockStatement s = parse(l);
 #ifdef DEBUG
+    timer_end();
     blockstmt_print(s);
 #endif
     printf("\n\n");
     fflush(stdout);
+#ifdef DEBUG
+    timer_start("Type Checking");
+#endif
     type_check(s); 
     printf("\n\n");
 #ifdef DEBUG
+    timer_end();
     blockstmt_print(s);
+    //timer_start("JIT Compilation");
 #endif
-
-    dbg("Compiling..\n");
     codegen_compile(s);
-    dbg("Compilation completed!\n");
 
     type_dispose();
     blockstmt_dispose(s);
