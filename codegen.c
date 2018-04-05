@@ -140,6 +140,13 @@ static LLVMValueRef expr_compile(Expression *e, LLVMContextRef context, LLVMBuil
                 }
                 else
                     rightType = LLVMTypeOf(right);
+                if((leftType != LLVMInt64Type()) || (rightType != LLVMInt64Type())){
+                    if(leftType == LLVMInt64Type()){
+                        left = LLVMBuildSIToFP(builder, left, LLVMDoubleType(), "dconvtmp");
+                    }
+                    else
+                        right = LLVMBuildSIToFP(builder, right, LLVMDoubleType(), "dconvtmp");
+                }
                 #define IFINT() \
                     if(leftType == LLVMInt64Type() && rightType == LLVMInt64Type())
                 #define IFTYPECHECK(insIfInt, tempName) \
