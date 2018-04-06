@@ -169,8 +169,8 @@ static LLVMValueRef expr_compile(Expression *e, LLVMContextRef context, LLVMBuil
                     if(leftType == LLVMInt64Type() && rightType == LLVMInt64Type())
                 #define IFTYPECHECK(insIfInt, tempName) \
                     if(leftType == LLVMInt64Type() && rightType == LLVMInt64Type()) \
-                            return LLVMBuild##insIfInt(builder, left, right, "i" #tempName); \
-                    return LLVMBuildF##insIfInt(builder, left, right, "f" #tempName);
+                            return LLVMBuild##insIfInt(builder, left, right, "i" tempName); \
+                    return LLVMBuildF##insIfInt(builder, left, right, "f" tempName);
                 switch(e->token.type){
                     case TOKEN_plus:
                         IFTYPECHECK(Add, "addtmp")
