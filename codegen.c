@@ -23,6 +23,7 @@
 #include "display.h"
 #include "codegen.h"
 #include "timer.h"
+#include "runtime.h"
 
 typedef struct{
     LLVMValueRef ref;
@@ -32,11 +33,9 @@ typedef struct{
 static uint64_t variableRefPointer = 0;
 static VariableRef *variables = NULL;
 
-static LLVMValueRef get_generic_structure(){
-    LLVMValueRef type = LLVMConstInt(LLVMInt64Type(), 0, 0);
-    LLVMValueRef storage = LLVMConstInt(LLVMInt64Type(), 0, 0);
-    LLVMValueRef values[] = {type, storage};
-    return LLVMConstStruct(values, 2, 0);
+static LLVMTypeRef get_generic_structure_type(){
+    LLVMTypeRef types [] = {LLVMInt8Type(), LLVMInt64Type()};
+    return LLVMStructType(types, 2, 0);
 }
 
 //static LLVMValueRef get_container_structure(){
@@ -46,16 +45,16 @@ static LLVMValueRef get_generic_structure(){
 static uint64_t hash(const char *str, uint64_t length){
     uint64_t hash = 5381;
     uint64_t c = 0;
-//    printf("\nHashing..\n");
+    //    printf("\nHashing..\n");
     while (c < length)
         hash = ((hash << 5) + hash) + str[c++]; /* hash * 33 + c */
-//    printf("\nInput String : [%s] Hash : %lu\n", str, hash);
+    //    printf("\nInput String : [%s] Hash : %lu\n", str, hash);
     return hash;
 }
 
 static LLVMValueRef get_variable_ref(Expression *varE, uint8_t declareIfNotfound, LLVMBuilderRef builder){
     varE->hash = hash(varE->token.string, varE->token.length);
-    dbg("Searching for hash %ld", varE->hash);
+    //dbg("Searching for hash %ld", varE->hash);
     for(uint64_t i = 0;i < variableRefPointer;i++){
 
         if(variables[i].hash == varE->hash){
@@ -63,28 +62,28 @@ static LLVMValueRef get_variable_ref(Expression *varE, uint8_t declareIfNotfound
         }
     }
     if(declareIfNotfound){
-        dbg("Declaring ");
-        lexer_print_token(varE->token, 0);
+        // dbg("Declaring ");
+        // lexer_print_token(varE->token, 0);
         variableRefPointer++;
         variables = (VariableRef *)realloc(variables, sizeof(VariableRef) * variableRefPointer);
         LLVMValueRef ref;
         switch(varE->valueType){
-            case 6:
-                ref = get_generic_structure();
+            case VALUE_GEN:
+                ref = LLVMBuildAlloca(builder, get_generic_structure_type(), "localGeneric");
                 break;
-            case 5:
+            case VALUE_STR:
                 ref = LLVMBuildAlloca(builder, LLVMPointerType(LLVMInt8Type(), 0), "localString");
                 break;
-            case 4:
+            case VALUE_NUM:
                 ref = LLVMBuildAlloca(builder, LLVMDoubleType(), "localDouble");
                 break;
-            case 3:
+            case VALUE_INT:
                 ref = LLVMBuildAlloca(builder, LLVMInt64Type(), "localInt");
                 break;
-            case 2:
-                ref = get_generic_structure();
+            case VALUE_STRUCT:
+                ref = LLVMBuildAlloca(builder, get_generic_structure_type(), "localContainer");
                 break;
-            case 1:
+            case VALUE_BOOL:
                 ref = LLVMBuildAlloca(builder, LLVMInt1Type(), "localBool");
                 break;
         }
@@ -95,7 +94,121 @@ static LLVMValueRef get_variable_ref(Expression *varE, uint8_t declareIfNotfound
     return LLVMConstNull(LLVMInt1Type());
 }
 
+// Marks which runtime functions have been used in the program
+// to perform the global mapping of their physical address
+// to the engine
+static uint8_t runtime_function_used[ALGI_RUNTIME_FUNCTION_COUNT] = {0};
 
+static LLVMValueRef build_cast_call(LLVMBuilderRef builder, LLVMModuleRef module, LLVMValueRef val, ValueType castType){
+    LLVMTypeRef argumentType[2];
+    argumentType[0] = LLVMInt32Type();
+
+    LLVMValueRef argumentValue[2];
+
+    LLVMTypeRef returnType, valueType;
+    const char* callee = "__algi_invalid_cast";
+    if(LLVMIsAAllocaInst(val)){
+        valueType = LLVMGetAllocatedType(val);
+        val = LLVMBuildLoad(builder, val, "loadtmp");
+    }
+    else{
+        valueType = LLVMTypeOf(val);
+    }
+
+    argumentType[1] = valueType;
+    argumentValue[1] = val;
+
+    ValueType algiType;
+    switch(castType){
+        case VALUE_INT:
+            {
+                runtime_function_used[0] = 1;
+                callee = "__algi_to_int";
+                returnType = LLVMInt64Type();
+                algiType = valueType == get_generic_structure_type() ? VALUE_GEN : VALUE_STR;
+            }
+            break;
+        case VALUE_NUM:
+            {
+                runtime_function_used[1] = 1;
+                callee = "__algi_to_float";
+                returnType = LLVMDoubleType();
+                algiType = valueType == get_generic_structure_type() ? VALUE_GEN : VALUE_STR;
+            }
+            break;
+        case VALUE_STR:
+            {
+                runtime_function_used[2] = 1;
+                callee = "__algi_to_string";
+                returnType = LLVMPointerType(LLVMInt8Type(), 0);
+                algiType = VALUE_GEN;
+                if(valueType == LLVMInt64Type()){
+                    algiType = VALUE_INT;;
+                }
+                else if(valueType == LLVMDoubleType()){ 
+                    algiType = VALUE_NUM;
+                }
+                else if(valueType == LLVMInt1Type())
+                    algiType = VALUE_BOOL;
+            }
+            break;
+        case VALUE_BOOL:
+            {
+                runtime_function_used[3] = 1;
+                callee = "__algi_to_boolean";
+                returnType = LLVMInt1Type();
+                algiType = valueType == get_generic_structure_type() ? VALUE_GEN : VALUE_STR;
+            }
+            break;
+        default:
+            {
+                algiType = VALUE_UND;
+                returnType = LLVMVoidType();
+            }
+            break;
+    }
+    if(algiType == VALUE_STR && LLVMGetTypeKind(valueType) == LLVMArrayTypeKind){
+        dbg("Changing string type for val : \n");
+        LLVMDumpValue(val);
+        size_t l;
+        val = LLVMBuildGlobalString(builder, LLVMGetAsString(val, &l), "__runtime_call_tmp");
+        argumentValue[1] = val;
+    }
+    argumentValue[0] = LLVMConstInt(LLVMInt32Type(), algiType, 0);
+    LLVMTypeRef f = LLVMFunctionType(returnType, argumentType, 1, 1);
+    LLVMValueRef fn = LLVMGetNamedFunction(module, callee);
+    if(fn == NULL){
+        fn = LLVMAddFunction(module, callee, f);
+    }
+    return LLVMBuildCall(builder, fn, argumentValue, 2, "__algi_internal_cast_res");
+}
+/*
+static LLVMValueRef algi_declare_string(char* str, LLVMBuilderRef builder){
+    dbg("Declaring string : %s", str);
+    LLVMValueRef decl = LLVMBuildGlobalString(builder, str, "str");
+    return decl;
+}
+*/
+static char* format_string(const char *str, size_t length){
+    char *ret = strdup(str);
+    for(size_t i = 0;i < length;i++){
+        if(str[i] == '\\'){
+            if(str[i+1] == 'n')
+                ret[i] = ' ', ret[i+1] = '\n';
+            else if(str[i+1] == 't')
+                ret[i] = ' ', ret[i+1] = '\t';
+        }
+    }
+    return ret;
+}
+/*
+static char* algi_create_string_from_token(Token t){
+    char *s = (char *)malloc(t.length + 1);
+    strncpy(s, t.string, t.length);
+    s[t.length] = 0;
+    return s;
+}
+*/
 static LLVMValueRef expr_compile(Expression *e, LLVMContextRef context, LLVMBuilderRef builder, LLVMModuleRef module){
     switch(e->type){
         case EXPR_CONSTANT:
@@ -106,7 +219,12 @@ static LLVMValueRef expr_compile(Expression *e, LLVMContextRef context, LLVMBuil
                     case TOKEN_number:
                         return LLVMConstReal(LLVMDoubleType(), e->consex.dval);
                     case TOKEN_string:
-                        return LLVMConstString(e->consex.sval, e->token.length, 0);
+                        /* {
+                           char *s = algi_create_string_from_token(e->token);
+                           return algi_declare_string(s, builder);
+                           }
+                           */
+                        return LLVMConstString(e->consex.sval, e->token.length, 1);
                     case TOKEN_True:
                         return LLVMConstInt(LLVMInt1Type(), 1, 0);
                     case TOKEN_False:
@@ -118,24 +236,49 @@ static LLVMValueRef expr_compile(Expression *e, LLVMContextRef context, LLVMBuil
         case EXPR_UNARY:
             {
                 LLVMValueRef expVal = expr_compile(e->unex.right, context, builder, module);
+#define ISINT() \
+                if(LLVMTypeOf(expVal) == LLVMInt64Type() \
+                        || LLVMTypeOf(expVal) == LLVMInt1Type())
+#define ISFLT() \
+                if(LLVMTypeOf(expVal) == LLVMDoubleType())
+
                 switch(e->token.type){
                     case TOKEN_minus:
-                        return LLVMBuildNeg(builder, expVal, "negtmp"); 
+                        ISINT()
+                            return LLVMBuildNeg(builder, expVal, "negtmp");
+                        else ISFLT()
+                            return LLVMBuildFNeg(builder, expVal, "fnegtmp");
+                        return build_cast_call(builder, module, expVal, VALUE_NUM);
                     case TOKEN_not:
-                        return LLVMBuildNot(builder, expVal, "nottmp");
+                        if(LLVMTypeOf(expVal) == LLVMInt1Type())
+                            return LLVMBuildNot(builder, expVal, "nottmp");
+                        return build_cast_call(builder, module, expVal, VALUE_BOOL);
                     case TOKEN_Integer:
-                        return LLVMBuildIntCast(builder, expVal, LLVMInt64Type(), "intcasttmp");
+                        ISINT()
+                            return expVal;
+                        else ISFLT()
+                            return LLVMBuildFPToSI(builder, expVal, LLVMInt64Type(), "fcasttmp");
+                        return build_cast_call(builder, module, expVal, VALUE_INT);
                     case TOKEN_Number:
-                        return LLVMBuildFPCast(builder, expVal, LLVMDoubleType(), "doublecasttmp");
-                    case TOKEN_Structure:
-                        return LLVMBuildPointerCast(builder, expVal, LLVMInt64Type(), "pointercasttmp");
+                        ISINT(){
+                            return LLVMBuildSIToFP(builder, expVal, LLVMDoubleType(), "doublecasttmp");
+                        }
+                        else ISFLT()
+                            return expVal;
+
+                        return build_cast_call(builder, module, expVal, VALUE_NUM);
+                        // case TOKEN_Structure:
+                        //     return LLVMBuildPointerCast(builder, expVal, LLVMInt64Type(), "pointercasttmp");
                     case TOKEN_Boolean:
-                        return LLVMBuildIntCast(builder, expVal, LLVMInt1Type(), "boolcasttmp");
+                        ISINT()
+                            return LLVMBuildIntCast(builder, expVal, LLVMInt1Type(), "boolcasttmp");
+                        return build_cast_call(builder, module, expVal, VALUE_BOOL);
                     case TOKEN_String:
-                        return LLVMBuildPointerCast(builder, expVal, LLVMInt8Type(), "strcasttmp");
+                        return build_cast_call(builder, module, expVal, VALUE_STR);
                     default:
                         // TODO: Handle this properly
                         return LLVMConstNull(LLVMInt1Type());
+#undef ISNUM
                 }
             }
         case EXPR_VARIABLE:
@@ -165,65 +308,79 @@ static LLVMValueRef expr_compile(Expression *e, LLVMContextRef context, LLVMBuil
                     else
                         right = LLVMBuildSIToFP(builder, right, LLVMDoubleType(), "dconvtmp");
                 }
-                #define IFINT() \
-                    if(leftType == LLVMInt64Type() && rightType == LLVMInt64Type())
-                #define IFTYPECHECK(insIfInt, tempName) \
-                    if(leftType == LLVMInt64Type() && rightType == LLVMInt64Type()) \
-                            return LLVMBuild##insIfInt(builder, left, right, "i" tempName); \
-                    return LLVMBuildF##insIfInt(builder, left, right, "f" tempName);
+#define IFINT() \
+                if(leftType == LLVMInt64Type() && rightType == LLVMInt64Type())
+#define IFTYPECHECK(insIfInt, tempName) \
+                IFINT() \
+                    return LLVMBuild##insIfInt(builder, left, right, "i" tempName); \
+                return LLVMBuildF##insIfInt(builder, left, right, "f" tempName);
                 switch(e->token.type){
                     case TOKEN_plus:
                         IFTYPECHECK(Add, "addtmp")
                     case TOKEN_minus:
-                        IFTYPECHECK(Sub, "subtmp")
+                            IFTYPECHECK(Sub, "subtmp")
                     case TOKEN_star:
-                        IFTYPECHECK(Mul, "multmp")
+                                IFTYPECHECK(Mul, "multmp")
                     case TOKEN_backslash:
-                            IFINT()
-                                return LLVMBuildSDiv(builder, left, right, "idivtmp");
-                            return LLVMBuildFDiv(builder, left, right, "fdivtmp");
+                                    IFINT()
+                                        return LLVMBuildSDiv(builder, left, right, "idivtmp");
+                                    return LLVMBuildFDiv(builder, left, right, "fdivtmp");
                     case TOKEN_greater:
-                            IFINT(){
-                            return LLVMBuildICmp(builder, LLVMIntSGT, left, right, "igttmp");
-                        }
-                        else
-                            return LLVMBuildFCmp(builder, LLVMRealOGT, left, right, "fgttmp");
+                                    IFINT(){
+                                        return LLVMBuildICmp(builder, LLVMIntSGT, left, right, "igttmp");
+                                    }
+                                    else
+                                        return LLVMBuildFCmp(builder, LLVMRealOGT, left, right, "fgttmp");
                     case TOKEN_greater_equal:
-                        IFINT(){
-                            return LLVMBuildICmp(builder, LLVMIntSGE, left, right, "igetmp");
-                        }
-                        else
-                            return LLVMBuildFCmp(builder, LLVMRealOGE, left, right, "fgetmp");
+                                    IFINT(){
+                                        return LLVMBuildICmp(builder, LLVMIntSGE, left, right, "igetmp");
+                                    }
+                                    else
+                                        return LLVMBuildFCmp(builder, LLVMRealOGE, left, right, "fgetmp");
                     case TOKEN_lesser:
-                        IFINT(){
-                            return LLVMBuildICmp(builder, LLVMIntSLT, left, right, "ilttmp");
-                        }
-                        else
-                            return LLVMBuildFCmp(builder, LLVMRealOLT, left, right, "flttmp");
+                                    IFINT(){
+                                        return LLVMBuildICmp(builder, LLVMIntSLT, left, right, "ilttmp");
+                                    }
+                                    else
+                                        return LLVMBuildFCmp(builder, LLVMRealOLT, left, right, "flttmp");
                     case TOKEN_lesser_equal:
-                        IFINT(){
-                            return LLVMBuildICmp(builder, LLVMIntSLE, left, right, "iletmp");
-                        }
-                        else
-                            return LLVMBuildFCmp(builder, LLVMRealOLE, left, right, "fletmp");
+                                    IFINT(){
+                                        return LLVMBuildICmp(builder, LLVMIntSLE, left, right, "iletmp");
+                                    }
+                                    else
+                                        return LLVMBuildFCmp(builder, LLVMRealOLE, left, right, "fletmp");
                     case TOKEN_equal_equal:
-                        IFINT(){
-                            return LLVMBuildICmp(builder, LLVMIntEQ, left, right, "ieqtmp");
-                        }
-                        else
-                            return LLVMBuildFCmp(builder, LLVMRealOEQ, left, right, "feqtmp");
+                                    IFINT(){
+                                        return LLVMBuildICmp(builder, LLVMIntEQ, left, right, "ieqtmp");
+                                    }
+                                    else
+                                        return LLVMBuildFCmp(builder, LLVMRealOEQ, left, right, "feqtmp");
                     case TOKEN_not_equal:
-                        IFINT(){
-                            return LLVMBuildICmp(builder, LLVMIntNE, left, right, "inetmp");
-                        }
-                        else
-                            return LLVMBuildFCmp(builder, LLVMRealONE, left, right, "fnetmp");
+                                    IFINT(){
+                                        return LLVMBuildICmp(builder, LLVMIntNE, left, right, "inetmp");
+                                    }
+                                    else
+                                        return LLVMBuildFCmp(builder, LLVMRealONE, left, right, "fnetmp");
                     default: // TOKEN_cap
-                        {
-                            LLVMValueRef fn = LLVMGetNamedFunction(module, "pow");
-                            LLVMValueRef ref[] = {left, right};
-                            return LLVMBuildCall(builder, fn, ref, 2, "__algi_internal_pow_res");
-                        }
+                                    {
+                                        if(LLVMTypeOf(left) != LLVMDoubleType()){
+                                            left = LLVMBuildSIToFP(builder, left, LLVMDoubleType(), "dcasttmp");
+                                        }
+                                        else
+                                            LLVMDumpValue(left);
+                                        if(LLVMTypeOf(right) != LLVMDoubleType()){
+                                            right = LLVMBuildSIToFP(builder, right, LLVMDoubleType(), "dcasttmp");
+                                        }
+                                        LLVMValueRef fn = LLVMGetNamedFunction(module, "pow");
+                                        if(fn == NULL){
+                                            LLVMTypeRef params[] = {LLVMDoubleType(), LLVMDoubleType()};
+                                            LLVMTypeRef ret = LLVMDoubleType();
+                                            LLVMTypeRef fType = LLVMFunctionType(ret, params, 2, 0);
+                                            fn = LLVMAddFunction(module, "pow", fType);
+                                        }
+                                        LLVMValueRef ref[] = {left, right};
+                                        return LLVMBuildCall(builder, fn, ref, 2, "__algi_internal_pow_res");
+                                    }
                 }
             }
         case EXPR_REFERENCE:
@@ -248,19 +405,6 @@ static LLVMValueRef expr_compile(Expression *e, LLVMContextRef context, LLVMBuil
 
 static LLVMValueRef blockstmt_compile(BlockStatement, LLVMBuilderRef, LLVMModuleRef, LLVMContextRef, uint8_t);
 
-static char* format_string(const char *str, size_t length){
-    char *ret = strdup(str);
-    for(size_t i = 0;i < length;i++){
-        if(str[i] == '\\'){
-            if(str[i+1] == 'n')
-                ret[i] = ' ', ret[i+1] = '\n';
-            else if(str[i+1] == 't')
-                ret[i] = ' ', ret[i+1] = '\t';
-        }
-    }
-    return ret;
-}
-
 static LLVMValueRef statement_compile(Statement *s, LLVMBuilderRef builder, LLVMModuleRef module, LLVMContextRef context){
     switch(s->type){
         case STATEMENT_SET:
@@ -268,11 +412,21 @@ static LLVMValueRef statement_compile(Statement *s, LLVMBuilderRef builder, LLVM
                 LLVMValueRef target = expr_compile(s->sets.target, context, builder, module);
                 LLVMValueRef value = expr_compile(s->sets.value, context, builder, module);
                 if(s->sets.value->valueType == VALUE_STR){
+                    if(LLVMGetTypeKind(LLVMTypeOf(value))
+                        == LLVMArrayTypeKind){
                     size_t length;
                     LLVMValueRef vRef = LLVMBuildGlobalString(builder, LLVMGetAsString(value, &length), "gString");
                     LLVMValueRef idx[] = {LLVMConstInt(LLVMInt32Type(), 0, 0), LLVMConstInt(LLVMInt32Type(), 0, 0)};
                     return LLVMBuildStore(builder, LLVMBuildGEP(builder, vRef, idx, 2, "gStringGEP"), target);
+                    }
+                    else if(LLVMIsAAllocaInst(value)){
+                        value = LLVMBuildLoad(builder, value, "tmpStringLoad");
+                    }
                 }
+
+                // if(LLVMTypeOf(target) != LLVMTypeOf(value)){
+                //     
+                // }
                 return LLVMBuildStore(builder, value, target);
             }
             break;
@@ -321,7 +475,7 @@ static LLVMValueRef statement_compile(Statement *s, LLVMBuilderRef builder, LLVM
             break;
         case STATEMENT_WHILE:
             {
-                
+
                 LLVMValueRef parent = LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder));
                 LLVMBasicBlockRef wCond = LLVMAppendBasicBlock(parent, "wcond");
                 LLVMBuildBr(builder, wCond);
@@ -369,7 +523,7 @@ static LLVMValueRef statement_compile(Statement *s, LLVMBuilderRef builder, LLVM
                     LLVMValueRef val = expr_compile(s->prints.args[i], context, builder, module);
                     LLVMTypeRef valRef = LLVMVoidType();
                     if(LLVMIsAAllocaInst(val)){
-                        dbg("It is alloca dude!\n");
+                        //dbg("It is alloca dude!\n");
                         valRef = LLVMGetAllocatedType(val);
                         val = LLVMBuildLoad(builder, val, "valueLoad");
                     }
@@ -386,10 +540,10 @@ static LLVMValueRef statement_compile(Statement *s, LLVMBuilderRef builder, LLVM
                         paramTypes[1] = LLVMInt64Type();
                         params[1] = val; 
                     }
-                    
+
                     else if(valRef == LLVMDoubleType()){
                         if((fspec = LLVMGetNamedGlobal(module, "floatSpec")) == NULL)
-                            fspec = LLVMBuildGlobalString(builder, "%g", "floatSpec");
+                            fspec = LLVMBuildGlobalString(builder, "%.10g", "floatSpec");
 
                         paramTypes[1] = LLVMDoubleType();
                         params[1] = val; 
@@ -397,20 +551,20 @@ static LLVMValueRef statement_compile(Statement *s, LLVMBuilderRef builder, LLVM
                     else{
                         if((fspec = LLVMGetNamedGlobal(module, "strSpec")) == NULL)
                             fspec = LLVMBuildGlobalString(builder, "%s", "strSpec");
-                        
+
                         paramTypes[1] = LLVMPointerType(LLVMInt8Type(), 0); 
 
 
                         if(valRef == LLVMPointerType(LLVMInt8Type(), 0))
                             params[1] = val;
                         else if(valRef == LLVMInt1Type()){
-                            unsigned long long lval = LLVMConstIntGetZExtValue(val);
-                            if(lval && (params[1] = LLVMGetNamedGlobal(module, "trueString")) == NULL)
-                                params[1] = LLVMBuildGlobalString(builder, "True\0", "trueString");
-                            if(!lval && (params[1] = LLVMGetNamedGlobal(module, "falseString")) == NULL)
-                                params[1] = LLVMBuildGlobalString(builder, "False\0", "falseString");
-
-                            params[1] = LLVMBuildInBoundsGEP(builder, params[1], idx, 2, "str");
+                           
+                            params[1] = LLVMBuildSelect(builder, val,
+                                LLVMBuildInBoundsGEP(builder, LLVMBuildGlobalString(builder, "True\0", "boolResT"),
+                                        idx, 2, "gep"), 
+                                LLVMBuildInBoundsGEP(builder, LLVMBuildGlobalString(builder, "False\0", "boolResF"),
+                                        idx, 2, "gep"), "boolSelection");
+                            //params[1] = LLVMBuildInBoundsGEP(builder, params[1], idx, 2, "str");
                         }
                         else {
                             size_t length;
@@ -431,9 +585,9 @@ static LLVMValueRef statement_compile(Statement *s, LLVMBuilderRef builder, LLVM
                     if((pf = LLVMGetNamedFunction(module, "printf")) == NULL)
                         pf = LLVMAddFunction(module, "printf", ftype);
 
-                    dbg("builder : %p\n");
-                    dbg("params : %p\n", params);
-                    dbg("pf : %p\n", pf);
+                    //dbg("builder : %p\n");
+                    //dbg("params : %p\n", params);
+                    //dbg("pf : %p\n", pf);
 
                     ret = LLVMBuildCall(builder, pf, params, 2, "pftemp");
                 }
@@ -493,7 +647,7 @@ void codegen_compile(BlockStatement bs){
 
     //LLVMBasicBlockRef coreBB = LLVMAppendBasicBlock(entry, "entry");
     // LLVMPositionBuilderAtEnd(builder, coreBB);
-    
+
     timer_start("Compilation");
 
     blockstmt_compile(bs, builder, module, context, 1);
@@ -517,7 +671,7 @@ void codegen_compile(BlockStatement bs){
     LLVMInitializeNativeTarget();
     LLVMInitializeNativeAsmParser();
     LLVMInitializeNativeAsmPrinter();
-        
+
     //LLVMViewFunctionCFG(func);
 
     if(LLVMCreateExecutionEngineForModule(&engine, module, &err) != 0){
@@ -530,8 +684,16 @@ void codegen_compile(BlockStatement bs){
         exit(EXIT_FAILURE);
     }
 
+    // Map Algi runtime functions
+    for(uint64_t i = 0;i < ALGI_RUNTIME_FUNCTION_COUNT;i++){
+        if(runtime_function_used[i]){
+            LLVMAddGlobalMapping(engine, LLVMGetNamedFunction(module, algi_runtime_functions[i].name),
+                    algi_runtime_functions[i].address);
+        }
+    }
+
     LLVMSetModuleDataLayout(module, LLVMGetExecutionEngineTargetData(engine));
-      
+
     timer_end();
 
     timer_start("Optimization");
@@ -540,7 +702,7 @@ void codegen_compile(BlockStatement bs){
     LLVMPassManagerBuilderSetOptLevel(pmb, 2);
     LLVMPassManagerRef optimizer = LLVMCreatePassManager();
     //LLVMTargetMachineRef machine = LLVMGetExecutionEngineTargetMachine(engine);
-   
+
     //LLVMAddMemCpyOptPass(optimizer);
     //LLVMAddCFGSimplificationPass(optimizer);
     //LLVMAddConstantMergePass(optimizer);

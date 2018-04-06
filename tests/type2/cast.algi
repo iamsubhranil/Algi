@@ -1,0 +1,28 @@
+String s = "23"
+Print "\nTesting String => Integer\n"
+Integer i = Integer("23")
+Integer j = 0
+While(j < 10000){
+    Set i = Integer(s)
+    If(j == 382){
+        Set i = 1
+    }
+    Set j = j + 1
+}
+Print "\nj is : ", j
+Print "\ni is : ", i
+Print "\nTesting String => Boolean\n"
+Boolean b = Boolean("True")
+Print "\nBoolean(\"True\") : ", b
+Print "\nTesting Integer => String\n"
+Integer i = 78
+String s = String(i)
+Print "\nString(", i, ") : ", s
+Print "\nTesting Number => String\n"
+Number num = 3881.39891
+String t = String(num)
+Print "\nString(", num, ") : ", t
+Print "\nTesting Negation"
+Print "\n-Integer(\"372\") : ", -Integer("372")
+Print "\nTesting Not"
+Print "\n!Boolean(\"True\") : ", !Boolean("True")
