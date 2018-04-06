@@ -19,16 +19,16 @@ void pcyn(const char *msg, ...);
 void pmgn(const char *msg, ...);
 
 #ifdef DEBUG
-#define dbg(x, ...) dbg2( ANSI_FONT_BOLD "<%s:%d> " ANSI_COLOR_RESET x, __FILE__, __LINE__, ##__VA_ARGS__)
+#define dbg(x, ...) dbg2( ANSI_FONT_BOLD "<%s:%d:%s> " ANSI_COLOR_RESET x, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
 void dbg2(const char *msg, ...);
 
-#define err(x, ...) err2( ANSI_FONT_BOLD "<%s:%d> " ANSI_COLOR_RESET x, __FILE__, __LINE__, ##__VA_ARGS__)
+#define err(x, ...) err2( ANSI_FONT_BOLD "<%s:%d:%s> " ANSI_COLOR_RESET x, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
 void err2(const char *msg, ...);
 
-#define info(x, ...) info2( ANSI_FONT_BOLD "<%s:%d> " ANSI_COLOR_RESET x, __FILE__, __LINE__, ##__VA_ARGS__)
+#define info(x, ...) info2( ANSI_FONT_BOLD "<%s:%d:%s> " ANSI_COLOR_RESET x, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
 void info2(const char *msg, ...);
 
-#define warn(x, ...) warn2( ANSI_FONT_BOLD "<%s:%d> " ANSI_COLOR_RESET x, __FILE__, __LINE__, ##__VA_ARGS__)
+#define warn(x, ...) warn2( ANSI_FONT_BOLD "<%s:%d:%s> " ANSI_COLOR_RESET x, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
 void warn2(const char *msg, ...);
 #else
 void dbg2(const char *msg, ...);
