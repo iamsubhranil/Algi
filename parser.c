@@ -405,7 +405,9 @@ static Statement* statement_While(){
 static Statement* statement_Do(){
     Statement *wh = stmt_new2(DO);
     wh->dos.statements = statement_block();
-    wh->dos.condition = expression();
+    if(consume(While)){
+        wh->dos.condition = expression();
+    }
     return wh;
 }
 
