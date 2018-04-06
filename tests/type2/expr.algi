@@ -1,0 +1,9 @@
+Integer i = 1
+Print "\ni is : ", i
+Integer j = 2
+Print "\nj is : ", j
+Boolean b = j > i
+Print "\nb = j > i is : ", b
+Number n = Number(i*j/j+j-i)
+Print "\ni*j/j+j-i is : ", n
+Print "\n2^4 is : ", 2^4
