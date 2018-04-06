@@ -182,33 +182,7 @@ static LLVMValueRef build_cast_call(LLVMBuilderRef builder, LLVMModuleRef module
     }
     return LLVMBuildCall(builder, fn, argumentValue, 2, "__algi_internal_cast_res");
 }
-/*
-static LLVMValueRef algi_declare_string(char* str, LLVMBuilderRef builder){
-    dbg("Declaring string : %s", str);
-    LLVMValueRef decl = LLVMBuildGlobalString(builder, str, "str");
-    return decl;
-}
-*/
-static char* format_string(const char *str, size_t length){
-    char *ret = strdup(str);
-    for(size_t i = 0;i < length;i++){
-        if(str[i] == '\\'){
-            if(str[i+1] == 'n')
-                ret[i] = ' ', ret[i+1] = '\n';
-            else if(str[i+1] == 't')
-                ret[i] = ' ', ret[i+1] = '\t';
-        }
-    }
-    return ret;
-}
-/*
-static char* algi_create_string_from_token(Token t){
-    char *s = (char *)malloc(t.length + 1);
-    strncpy(s, t.string, t.length);
-    s[t.length] = 0;
-    return s;
-}
-*/
+
 static LLVMValueRef expr_compile(Expression *e, LLVMContextRef context, LLVMBuilderRef builder, LLVMModuleRef module){
     switch(e->type){
         case EXPR_CONSTANT:
@@ -219,12 +193,7 @@ static LLVMValueRef expr_compile(Expression *e, LLVMContextRef context, LLVMBuil
                     case TOKEN_number:
                         return LLVMConstReal(LLVMDoubleType(), e->consex.dval);
                     case TOKEN_string:
-                        /* {
-                           char *s = algi_create_string_from_token(e->token);
-                           return algi_declare_string(s, builder);
-                           }
-                           */
-                        return LLVMConstString(e->consex.sval, e->token.length, 1);
+                        return LLVMConstString(e->consex.sval, strlen(e->consex.sval), 0);
                     case TOKEN_True:
                         return LLVMConstInt(LLVMInt1Type(), 1, 0);
                     case TOKEN_False:
@@ -569,8 +538,7 @@ static LLVMValueRef statement_compile(Statement *s, LLVMBuilderRef builder, LLVM
                         else {
                             size_t length;
                             const char *str = LLVMGetAsString(val, &length);
-                            char *formattedString = format_string(str, length);
-                            params[1] = LLVMBuildGlobalString(builder, formattedString, "pString");
+                            params[1] = LLVMBuildGlobalString(builder, str, "pString");
 
                             params[1] = LLVMBuildInBoundsGEP(builder, params[1], idx, 2, "str");
                         }

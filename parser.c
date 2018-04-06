@@ -81,6 +81,34 @@ bool consume2(TokenType type){
 
 static Expression* expression();
 
+static char* format_string(const char *str, size_t length){
+    char *ret = NULL;
+    size_t j = 0;
+    for(size_t i = 0;i < length;i++, j++){
+        ret = (char *)realloc(ret, j+1);
+        if(str[i] == '\\'){
+            if(str[i+1] == 'n'){
+                ret[j] = '\n';
+                i++;
+            }
+            else if(str[i+1] == 't'){
+                ret[j] = '\t';
+                i++;
+            }
+            else if(str[i+1] == '"'){
+                ret[j] = '"';
+                i++;
+            }
+        }
+        else
+            ret[j] = str[i];
+
+    }
+    ret = (char *)realloc(ret, j+1);
+    ret[j] = 0;
+    return ret;
+}
+
 static Expression* _primary(){
     if(match(number)){
         Expression *ex = expr_new(EXPR_CONSTANT);
@@ -140,9 +168,7 @@ static Expression* _primary(){
     if(match(string)){ 
         Expression *ex = expr_new(EXPR_CONSTANT);
         ex->token = presentToken;
-        ex->consex.sval = (char *)malloc(presentToken.length + 1);
-        strncpy(ex->consex.sval, presentToken.string, presentToken.length);
-        ex->consex.sval[presentToken.length] = 0;
+        ex->consex.sval = format_string(presentToken.string, presentToken.length);
         advance();
         ex->valueType = VALUE_STR;
         return ex;
