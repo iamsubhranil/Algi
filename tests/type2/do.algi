@@ -1,0 +1,5 @@
+Integer i = 0
+Do{
+    Set i = i + 1
+    Print "\ni is : ", i
+} While(i < 100)

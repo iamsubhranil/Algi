@@ -348,6 +348,19 @@ static LLVMValueRef statement_compile(Statement *s, LLVMBuilderRef builder, LLVM
 
                 return LLVMConstInt(LLVMInt1Type(), 0, 0);
             }
+        case STATEMENT_DO:
+            {
+                LLVMValueRef parent = LLVMGetBasicBlockParent(LLVMGetInsertBlock(builder));
+                LLVMBasicBlockRef dbody = LLVMAppendBasicBlock(parent, "dbody");
+                LLVMBuildBr(builder, dbody);
+                LLVMPositionBuilderAtEnd(builder, dbody);
+                blockstmt_compile(s->dos.statements, builder, module, context, 0);
+                LLVMValueRef cond = expr_compile(s->dos.condition, context, builder, module);
+                LLVMBasicBlockRef cont = LLVMAppendBasicBlock(parent, "dcont");
+                LLVMBuildCondBr(builder, cond, dbody, cont);
+                LLVMPositionBuilderAtEnd(builder, cont);
+                return LLVMConstInt(LLVMInt1Type(), 0, 0);
+            }
         case STATEMENT_PRINT:
             {
                 LLVMValueRef params[2];
