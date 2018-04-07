@@ -1,0 +1,57 @@
+Print "\nLoad/Store Test"
+Print "\n=============="
+Print "\nInitializing s as Generic with a constant Integer 993"
+Set s = 993
+Print "\nGeneric(ConstantInteger) : ", s
+Print "\nStoring a variable Integer 32"
+Integer i = 32
+Set s = i
+Print "\nGeneric(VariableInteger) : ", i
+Print "\n\nStoring a constant String \"MyString\" "
+Set s = "MyString"
+Print "\nGeneric(ConstantString) : ", s
+Print "\nStoring variable String \"AnotherString\" "
+String t = "AnotherString"
+Set s = t
+Print "\nGeneric(VariableString) : ", s
+Print "\n\nStoring a constant Number 3882.3992"
+Set s = 3882.3992
+Print "\nGeneric(ConstantNumber) : ", s
+Print "\nStoring variable Number 382.391"
+Number n = 382.391
+Set s = n
+Print "\nGeneric(VariableNumber) : ", s
+Print "\n\nStoring a constant Boolean True"
+Set s = True
+Print "\nGeneric(ConstantBoolean) : ", s
+Print "\nStoring variable Boolean False"
+Boolean b = False
+Set s = b
+Print "\nGeneric(VariableBoolean) : ", s
+Print "\n\nCasting Test"
+Print "\n============"
+Set s = False
+Boolean b = Boolean(s)
+Print "\nExpected cast : False\tReceived : ", b
+Set s = "TestString"
+String t = String(s)
+Print "\nExpected cast : TestString\tReceived : ", t
+Set s = 3882.329
+Number n = Number(s)
+Print "\nExpected cast : 3882.329\tReceived : ", n
+Set s = 789
+Integer i = Integer(s)
+Print "\nExpected cast : 789\tReceived : ", i
+Print "\n\nExpression Test"
+Print "\n==============="
+Set s = 320
+Set a = 3882.3021
+Set a = a + s
+Print "\nExpected : ", 320+3882.3021, " Received : ", a
+Print "\n\nCondition Test"
+Print "\n==============="
+Set s = 39
+Set m = 31
+If(s > m){
+    Print "\nConditionals are working with Generics!"
+}

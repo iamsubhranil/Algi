@@ -15,7 +15,7 @@ typedef struct{
 
 // Update the counter and the array whenever a new
 // runtime function is added
-#define ALGI_RUNTIME_FUNCTION_COUNT 4
+#define ALGI_RUNTIME_FUNCTION_COUNT 6
 
 typedef struct{
     const char* name;
@@ -30,6 +30,19 @@ extern char* __algi_to_string(int type, ...);
 
 extern int8_t __algi_to_boolean(int type, ...);
 
+extern void __algi_generic_print(AlgiGenericValue value);
+
+extern void __algi_generic_store(AlgiGenericValue *value, int storeType, ...);
+
+typedef enum{
+    ALGI_TO_INT = 0,
+    ALGI_TO_DOUBLE,
+    ALGI_TO_STRING,
+    ALGI_TO_BOOLEAN,
+    ALGI_GENERIC_PRINT,
+    ALGI_GENERIC_STORE
+} AlgiFunctionIndex;
+    
 #define ALGI_DECLARE_RUNTIME_FUNCTION(name) \
     {"__" #name, (void*)&__##name}
 
@@ -37,5 +50,9 @@ static AlgiRuntimeFunction algi_runtime_functions[] = {
     ALGI_DECLARE_RUNTIME_FUNCTION(algi_to_int),
     ALGI_DECLARE_RUNTIME_FUNCTION(algi_to_double),
     ALGI_DECLARE_RUNTIME_FUNCTION(algi_to_string),
-    ALGI_DECLARE_RUNTIME_FUNCTION(algi_to_boolean)
+    ALGI_DECLARE_RUNTIME_FUNCTION(algi_to_boolean),
+    ALGI_DECLARE_RUNTIME_FUNCTION(algi_generic_print),
+    ALGI_DECLARE_RUNTIME_FUNCTION(algi_generic_store)
 };
+
+#undef ALGI_DECLARE_RUNTIME_FUNCTION

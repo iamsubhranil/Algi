@@ -118,7 +118,7 @@ static LLVMValueRef build_cast_call(LLVMBuilderRef builder, LLVMModuleRef module
     switch(castType){
         case VALUE_INT:
             {
-                runtime_function_used[0] = 1;
+                runtime_function_used[ALGI_TO_INT] = 1;
                 callee = "__algi_to_int";
                 returnType = LLVMInt64Type();
                 algiType = valueType == get_generic_structure_type() ? VALUE_GEN : VALUE_STR;
@@ -126,15 +126,15 @@ static LLVMValueRef build_cast_call(LLVMBuilderRef builder, LLVMModuleRef module
             break;
         case VALUE_NUM:
             {
-                runtime_function_used[1] = 1;
-                callee = "__algi_to_float";
+                runtime_function_used[ALGI_TO_DOUBLE] = 1;
+                callee = "__algi_to_double";
                 returnType = LLVMDoubleType();
                 algiType = valueType == get_generic_structure_type() ? VALUE_GEN : VALUE_STR;
             }
             break;
         case VALUE_STR:
             {
-                runtime_function_used[2] = 1;
+                runtime_function_used[ALGI_TO_STRING] = 1;
                 callee = "__algi_to_string";
                 returnType = LLVMPointerType(LLVMInt8Type(), 0);
                 algiType = VALUE_GEN;
@@ -150,7 +150,7 @@ static LLVMValueRef build_cast_call(LLVMBuilderRef builder, LLVMModuleRef module
             break;
         case VALUE_BOOL:
             {
-                runtime_function_used[3] = 1;
+                runtime_function_used[ALGI_TO_BOOLEAN] = 1;
                 callee = "__algi_to_boolean";
                 returnType = LLVMInt1Type();
                 algiType = valueType == get_generic_structure_type() ? VALUE_GEN : VALUE_STR;
@@ -379,14 +379,35 @@ static LLVMValueRef statement_compile(Statement *s, LLVMBuilderRef builder, LLVM
                 if(s->sets.value->valueType == VALUE_STR){
                     if(LLVMGetTypeKind(LLVMTypeOf(value))
                         == LLVMArrayTypeKind){
-                    size_t length;
-                    LLVMValueRef vRef = LLVMBuildGlobalString(builder, LLVMGetAsString(value, &length), "gString");
-                    LLVMValueRef idx[] = {LLVMConstInt(LLVMInt32Type(), 0, 0), LLVMConstInt(LLVMInt32Type(), 0, 0)};
-                    return LLVMBuildStore(builder, LLVMBuildGEP(builder, vRef, idx, 2, "gStringGEP"), target);
+                        size_t length;
+                        LLVMValueRef vRef = LLVMBuildGlobalString(builder, LLVMGetAsString(value, &length), "gString");
+                        LLVMValueRef idx[] = {LLVMConstInt(LLVMInt32Type(), 0, 0), LLVMConstInt(LLVMInt32Type(), 0, 0)};
+                        //value = LLVMBuildStore(builder, LLVMBuildGEP(builder, vRef, idx, 2, "gStringGEP"), target);
+                        
+                        if(s->sets.target->valueType != VALUE_GEN)
+                            return LLVMBuildStore(builder, LLVMBuildGEP(builder, vRef, idx, 2, "gStringGEP"), target);
+                        else
+                            value = vRef;
                     }
                     else if(LLVMIsAAllocaInst(value)){
                         value = LLVMBuildLoad(builder, value, "tmpStringLoad");
                     }
+                }
+                if(s->sets.target->valueType == VALUE_GEN){
+                    if(LLVMIsAAllocaInst(value))
+                        value = LLVMBuildLoad(builder, value, "tmpValLoad");
+                    LLVMTypeRef argType[] = {LLVMPointerType(get_generic_structure_type(), 0),
+                                LLVMInt32Type(), LLVMTypeOf(value)};
+                    LLVMTypeRef fType = LLVMFunctionType(LLVMVoidType(), argType, 2, 1);
+                    LLVMValueRef fn;
+                    if((fn = LLVMGetNamedFunction(module, "__algi_generic_store")) == NULL)
+                        fn = LLVMAddFunction(module, "__algi_generic_store", fType);
+                    runtime_function_used[ALGI_GENERIC_STORE] = 1;
+                    LLVMValueRef r[3];
+                    r[0] = target;
+                    r[1] = LLVMConstInt(LLVMInt32Type(), s->sets.value->valueType, 0);
+                    r[2] = value;
+                    return LLVMBuildCall(builder, fn, r, 3, "");
                 }
                 // if(LLVMTypeOf(target) != LLVMTypeOf(value)){
                 //     
@@ -497,7 +518,19 @@ static LLVMValueRef statement_compile(Statement *s, LLVMBuilderRef builder, LLVM
                     LLVMValueRef idx[] = {LLVMConstInt(LLVMInt32Type(), 0, 0),
                         LLVMConstInt(LLVMInt32Type(), 0, 0)};
                     LLVMValueRef fspec;
-                    if(valRef == LLVMInt64Type()){ 
+                    if(valRef == get_generic_structure_type()){
+                        //fspec = LLVMBuildGlobalString(builder, "%g", "genspec");
+                        LLVMTypeRef params[] = {get_generic_structure_type()};
+                        LLVMTypeRef agvpt = LLVMFunctionType(LLVMVoidType(), params, 1, 0);
+                        LLVMValueRef ref;
+                        if((ref = LLVMGetNamedFunction(module, "__algi_generic_print")) == NULL){
+                            runtime_function_used[ALGI_GENERIC_PRINT] = 1;
+                            ref = LLVMAddFunction(module, "__algi_generic_print", agvpt);
+                        }
+                        LLVMValueRef args[] = {val};
+                        return LLVMBuildCall(builder, ref, args, 1, "");
+                    }
+                    else if(valRef == LLVMInt64Type()){ 
                         if((fspec = LLVMGetNamedGlobal(module, "intSpec")) == NULL)
                             fspec = LLVMBuildGlobalString(builder, "%ld", "intSpec");
 

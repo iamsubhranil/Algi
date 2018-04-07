@@ -124,6 +124,8 @@ char* __algi_to_string(int type, ...){
                     else
                         len = 5;
                 }
+                else if(agv.type == VALUE_STR)
+                    return agv.string;
             }
             break;
         default:
@@ -161,7 +163,7 @@ __algi_boolean_convert:
                 else if(strcmp(str, "False") == 0)
                     return 0;
                 else{
-                    err("Unable to convert String %s to Boolean!", str);
+                    err("Unable to convert String \"%s\" to Boolean!", str);
                     exit(EXIT_FAILURE);
                 }
             }
@@ -186,4 +188,50 @@ __algi_boolean_convert:
             break;
     }
     return 0;
+}
+
+void __algi_generic_print(AlgiGenericValue agv){
+    //dbg("%d %ld\n", agv.type, agv.inumber);
+    switch(agv.type){
+        case VALUE_BOOL:
+            printf("%s", agv.inumber ? "True" : "False");
+            break;
+        case VALUE_INT:
+            printf("%" PRId64, agv.inumber);
+            break;
+        case VALUE_NUM:
+            printf("%.10g", agv.dnumber);
+            break;
+        case VALUE_STR:
+            printf("%s", agv.string);
+            break;
+    }
+}
+
+void __algi_generic_store(AlgiGenericValue *value, int storeType, ...){
+    va_list args;
+    va_start(args, storeType);
+    //dbg("Storing %d to %p", storeType, value);
+    switch(storeType){
+        case VALUE_BOOL:
+            value->inumber = va_arg(args, int);
+            break;
+        case VALUE_INT:
+            value->inumber = va_arg(args, int64_t);
+            break;
+        case VALUE_NUM:
+            value->dnumber = va_arg(args, double);
+            break;
+        case VALUE_STR:
+            value->string = va_arg(args, char*);
+            break;
+        case VALUE_GEN:
+            {
+                AlgiGenericValue agv = va_arg(args, AlgiGenericValue);
+                value->type = agv.type;
+                value->inumber = agv.inumber;
+            }
+            break;
+    }
+    value->type = storeType;
 }

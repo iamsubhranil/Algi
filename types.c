@@ -422,14 +422,25 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
                 switch(e->token.type){ 
                     case TOKEN_equal_equal:
                     case TOKEN_not_equal:
-                      /*  if(right == VALUE_BOOL && left == VALUE_GEN){
-                            e->binex.left->expectedType = VALUE_BOOL;
+                       if(right == VALUE_BOOL && left == VALUE_GEN){
+                            Expression *autocast = expr_new(EXPR_UNARY);
+                            autocast->token.type = TOKEN_Boolean;
+                            autocast->unex.right = e->binex.left;
+                            autocast->valueType = VALUE_BOOL;
+                            e->binex.left = autocast;
+                            e->binex.left->valueType = VALUE_BOOL;
                             break;
                         }
                         else if(left == VALUE_BOOL && right == VALUE_GEN){
-                            e->binex.right->expectedType = VALUE_BOOL;
+                            Expression *autocast = expr_new(EXPR_UNARY);
+                            autocast->token.type = TOKEN_Boolean;
+                            autocast->unex.right = e->binex.right;
+                            autocast->valueType = VALUE_BOOL;
+                            e->binex.right = autocast;
+                            e->binex.right->valueType = VALUE_BOOL;
                             break;
                         }
+                        /*
                         else if(left == VALUE_STRUCT && right == VALUE_GEN){
                             e->binex.right->expectedType = VALUE_STRUCT;
                             break;
@@ -447,6 +458,22 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
                     case TOKEN_greater_equal:
                     case TOKEN_lesser:
                     case TOKEN_lesser_equal:
+                        if(right == VALUE_GEN){
+                            Expression *autocast = expr_new(EXPR_UNARY);
+                            autocast->token.type = TOKEN_Number;
+                            autocast->unex.right = e->binex.right;
+                            autocast->valueType = VALUE_NUM;
+                            e->binex.right = autocast;
+                            e->binex.right->valueType = VALUE_NUM;
+                        }
+                        if(left == VALUE_GEN){ 
+                            Expression *autocast = expr_new(EXPR_UNARY);
+                            autocast->token.type = TOKEN_Number;
+                            autocast->unex.right = e->binex.left;
+                            autocast->valueType = VALUE_NUM;
+                            e->binex.left = autocast;
+                            e->binex.left->valueType = VALUE_NUM;
+                        }
                         /*
                         if(left == VALUE_GEN){
                             e->binex.left->expectedType = VALUE_NUM;
@@ -554,8 +581,8 @@ reg_x(container, CONTAINER, STRUCT)
                     //dbg("ValueType : %s", valueNames[valueType]);
                     if(targetType == VALUE_UND){
                         targetType = VALUE_GEN;
-                       // s->sets.target->valueType = VALUE_GEN;
-                        s->sets.target->expectedType = VALUE_GEN;
+                        s->sets.target->valueType = VALUE_GEN;
+                        //s->sets.target->expectedType = VALUE_GEN;
                     }
                     Declaration *d = NULL;
                     if(s->sets.target->type == EXPR_VARIABLE){
@@ -583,8 +610,9 @@ reg_x(container, CONTAINER, STRUCT)
                             break;
                         }
                     }
-                    if(targetType == valueType ||
-                            d->isGeneric){
+                    if(targetType == VALUE_GEN)
+                        break;
+                    if(targetType == valueType){
                         if(valueType == VALUE_STRUCT){
                             //dbg("Declaration : %p", d);
                             Declaration *structD = expr_get_decl(context, s->sets.value);
