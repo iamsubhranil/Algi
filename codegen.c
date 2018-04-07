@@ -4,7 +4,6 @@
 #include <llvm-c/Types.h>
 #include <llvm-c/Core.h>
 #include <llvm-c/Target.h>
-//#include <llvm-c/ErrorHandling.h>
 #include <llvm-c/Analysis.h>
 #include <llvm-c/ExecutionEngine.h>
 #include <llvm-c/OrcBindings.h>
@@ -14,8 +13,6 @@
 #include <llvm-c/Transforms/PassManagerBuilder.h>
 #include <llvm-c/Transforms/Scalar.h>
 #include <llvm-c/Transforms/Vectorize.h>
-
-#include <string.h>
 
 #include "expr.h"
 #include "stmt.h"
@@ -56,14 +53,13 @@ static LLVMValueRef get_variable_ref(Expression *varE, uint8_t declareIfNotfound
     varE->hash = hash(varE->token.string, varE->token.length);
     //dbg("Searching for hash %ld", varE->hash);
     for(uint64_t i = 0;i < variableRefPointer;i++){
-
         if(variables[i].hash == varE->hash){
             return variables[i].ref;
         }
     }
     if(declareIfNotfound){
-        // dbg("Declaring ");
-        // lexer_print_token(varE->token, 0);
+        //dbg("Declaring ");
+        //lexer_print_token(varE->token, 0);
         variableRefPointer++;
         variables = (VariableRef *)realloc(variables, sizeof(VariableRef) * variableRefPointer);
         LLVMValueRef ref;
@@ -392,7 +388,6 @@ static LLVMValueRef statement_compile(Statement *s, LLVMBuilderRef builder, LLVM
                         value = LLVMBuildLoad(builder, value, "tmpStringLoad");
                     }
                 }
-
                 // if(LLVMTypeOf(target) != LLVMTypeOf(value)){
                 //     
                 // }
@@ -610,16 +605,9 @@ void codegen_compile(BlockStatement bs){
     LLVMBuilderRef builder = LLVMCreateBuilder();
     LLVMContextRef context = LLVMContextCreate();
 
-    //LLVMPositionBuilderAtEnd(builder, LLVMGetEntryBasicBlock(func));
-    // blockstmt_compile(bs, builder, module, context);
-
-    //LLVMBasicBlockRef coreBB = LLVMAppendBasicBlock(entry, "entry");
-    // LLVMPositionBuilderAtEnd(builder, coreBB);
-
     timer_start("Compilation");
 
     blockstmt_compile(bs, builder, module, context, 1);
-    //LLVMBuildRetVoid(builder);
 
     timer_end();
 
@@ -639,8 +627,6 @@ void codegen_compile(BlockStatement bs){
     LLVMInitializeNativeTarget();
     LLVMInitializeNativeAsmParser();
     LLVMInitializeNativeAsmPrinter();
-
-    //LLVMViewFunctionCFG(func);
 
     if(LLVMCreateExecutionEngineForModule(&engine, module, &err) != 0){
         printf("\nFailed to create execution engine!\n");
@@ -669,22 +655,12 @@ void codegen_compile(BlockStatement bs){
     LLVMPassManagerBuilderRef pmb = LLVMPassManagerBuilderCreate();
     LLVMPassManagerBuilderSetOptLevel(pmb, 2);
     LLVMPassManagerRef optimizer = LLVMCreatePassManager();
-    //LLVMTargetMachineRef machine = LLVMGetExecutionEngineTargetMachine(engine);
-
-    //LLVMAddMemCpyOptPass(optimizer);
-    //LLVMAddCFGSimplificationPass(optimizer);
-    //LLVMAddConstantMergePass(optimizer);
-    //LLVMAddBasicAliasAnalysisPass(optimizer);
-    //LLVMAddInstructionCombiningPass(optimizer);
-    //LLVMAddGVNPass(optimizer);
-    //LLVMAddPromoteMemoryToRegisterPass(optimizer);
 
     LLVMPassManagerBuilderPopulateModulePassManager(pmb, optimizer);
     LLVMRunPassManager(optimizer, module);
     timer_end();
     LLVMDisposePassManager(optimizer);
     LLVMPassManagerBuilderDispose(pmb);
-    //LLVMAddAnalysisPasses(machine, optimizer);
 
     dbg("Optimized code \n");
     LLVMDumpModule(module);
