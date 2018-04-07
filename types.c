@@ -347,7 +347,7 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
                 if(e->valueType == VALUE_UND){
                     e->valueType = d == NULL ? VALUE_UND : d->valType;
                    // e->expectedType = e->valueType
-                   e->hash = d->hash;
+                   e->hash = d == NULL ? 0 : d->hash;
                 }
                 break;
             }
@@ -672,6 +672,7 @@ reg_x(container, CONTAINER, STRUCT)
                         hasErrors++;
                         break;
                     }
+                    type_check_internal(s->ifs.thenBlock, context);
                     if(s->ifs.elseIf != NULL)
                         check_statement(s->ifs.elseIf, context);
                     if(s->ifs.elseBlock.count > 0)
@@ -680,8 +681,15 @@ reg_x(container, CONTAINER, STRUCT)
                 }
             case STATEMENT_PRINT:
                 {
-                    for(uint64_t i = 0;i < s->prints.count;i++)
-                        check_expression(s->prints.args[i], context, 1);
+                    for(uint64_t i = 0;i < s->prints.count;i++){
+                        ValueType v = check_expression(s->prints.args[i], context, 1);
+                        if(v == VALUE_UND){
+                            err("Use of undefined value or expression ");
+                            lexer_print_token(s->prints.args[i]->token, 0);
+                            token_print_source(s->prints.args[i]->token, 1);
+                            hasErrors++;
+                        }
+                    }
                     break;
                 }
         }
@@ -690,6 +698,12 @@ reg_x(container, CONTAINER, STRUCT)
 static Context globalContext = {CONT_GLOBAL, NULL, 0, 0, NULL};
 
 static void type_check_internal(BlockStatement statements, Context *context){
+    if(context == NULL){
+        context = &globalContext;
+    }
+    else{
+        context = context_new(context->type, context);
+    }
     for(uint64_t i = 0;i < statements.count;i++){
         switch(statements.statements[i]->type){
             case STATEMENT_CONTAINER:
@@ -727,13 +741,14 @@ cst:
                 break;
         }
     }
+
     // for(uint64_t i = 0;i < statements.count;i++){
     //     check_statement(statements.statements[i], context);
     // }
 }
 
 void type_check(BlockStatement statements){
-    type_check_internal(statements, &globalContext);
+    type_check_internal(statements, NULL);
 }
 
 void type_dispose(){
