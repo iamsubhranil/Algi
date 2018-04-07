@@ -133,6 +133,7 @@ bin_type_mismatch:
                     return VALUE_BOOL;
             switch(left){
                 case VALUE_INT:
+                case VALUE_NUM:
                 case VALUE_GEN:
                     if(right == VALUE_NUM || right == VALUE_INT)
                         return VALUE_BOOL;
@@ -264,31 +265,7 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
         case EXPR_UNARY:
             {
                 ValueType t = check_expression(e->unex.right, context, searchSuper);
-#define TYPECAST(type, y) \
-                case TOKEN_##type: \
-                                if(t != VALUE_##y){ \
-                                    err("Bad typecast from %s to " #type, valueNames[t]); \
-                                    token_print_source(e->token, 1); \
-                                    hasErrors++; \
-                                } \
-                                e->valueType = VALUE_##y; \
-                                break; 
                 switch(e->token.type){
-                    TYPECAST(Integer, INT)
-                    TYPECAST(String, STR)
-                    TYPECAST(Boolean, BOOL)
-                    TYPECAST(Structure, STRUCT)
-#undef TYPECAST
-                    case TOKEN_Number:
-                        if(t != VALUE_INT && t != VALUE_NUM){
-                            err("Bad typecast from %s to Number!", valueNames[t]);
-                            token_print_source(e->token, 1);
-                            hasErrors++; 
-                        }
-                        e->valueType = VALUE_NUM;
-                       // e->expectedType = VALUE_NUM;
-                      //  e->unex.right->expectedType = VALUE_NUM;
-                        break;
                     case TOKEN_Type:
                         e->valueType = VALUE_INT;
                        // e->expectedType = VALUE_INT;
