@@ -17,8 +17,8 @@ int64_t __algi_to_int(int32_t type, ...){
     switch(type){
         case VALUE_STR:
             {
-__algi_int_convert:
                 str = va_arg(args, char*);
+__algi_int_convert:;
                 //dbg("Recieved string %s", str);
                 int64_t res = (int64_t)strtol(str, &err, 10);
                 if(*err != 0){
@@ -56,8 +56,8 @@ double __algi_to_double(int32_t type, ...){
     switch(type){
         case VALUE_STR:
             {
-__algi_double_convert:
                 str = va_arg(args, char*);
+__algi_double_convert:;
                 //dbg("Recieved string %s", str);
                 double res = strtod(str, &err);
                 if(*err != 0){
@@ -157,8 +157,8 @@ int8_t __algi_to_boolean(int32_t type, ...){
     switch(type){
         case VALUE_STR:
             {
-__algi_boolean_convert:
                 str = va_arg(args, char*);
+__algi_boolean_convert:;
                 if(strcmp(str, "True") == 0)
                     return 1;
                 else if(strcmp(str, "False") == 0)
