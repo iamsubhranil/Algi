@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
+
+// LLVM Core
 #include <llvm-c/Types.h>
 #include <llvm-c/Core.h>
 #include <llvm-c/Target.h>
@@ -532,7 +535,7 @@ static LLVMValueRef statement_compile(Statement *s, LLVMBuilderRef builder, LLVM
                     }
                     else if(valRef == LLVMInt64Type()){ 
                         if((fspec = LLVMGetNamedGlobal(module, "intSpec")) == NULL)
-                            fspec = LLVMBuildGlobalString(builder, "%ld", "intSpec");
+                            fspec = LLVMBuildGlobalString(builder, "%" PRId64, "intSpec");
 
                         paramTypes[1] = LLVMInt64Type();
                         params[1] = val; 

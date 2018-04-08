@@ -4,7 +4,7 @@
 #include <stdarg.h>
 
 typedef struct{
-    int type; // Based on ValueType
+    int8_t type; // Based on ValueType
     union{ // A single 8 byte value will suffice for all of them
         char *string;
         int64_t inumber;
@@ -22,17 +22,17 @@ typedef struct{
     void* address;
 } AlgiRuntimeFunction;
 
-extern int64_t __algi_to_int(int type, ...);
+extern int64_t __algi_to_int(int32_t type, ...);
 
-extern double __algi_to_double(int type, ...);
+extern double __algi_to_double(int32_t type, ...);
 
-extern char* __algi_to_string(int type, ...);
+extern char* __algi_to_string(int32_t type, ...);
 
-extern int8_t __algi_to_boolean(int type, ...);
+extern int8_t __algi_to_boolean(int32_t type, ...);
 
 extern void __algi_generic_print(AlgiGenericValue value);
 
-extern void __algi_generic_store(AlgiGenericValue *value, int storeType, ...);
+extern void __algi_generic_store(AlgiGenericValue *value, int32_t storeType, ...);
 
 typedef enum{
     ALGI_TO_INT = 0,

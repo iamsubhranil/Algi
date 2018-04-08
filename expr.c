@@ -31,6 +31,8 @@ static Expression* expr_new2(){
 
 Expression* expr_new(ExpressionType type){
    Expression* e = expr_new2();
+   e->hash = 0;
+   e->token = nullToken;
    e->type = type;
    e->valueType = 0;
    e->expectedType = -1;

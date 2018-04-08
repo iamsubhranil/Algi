@@ -94,6 +94,8 @@ static ValueType compare_types(ValueType left, ValueType right, Token op){
             {
                 if(left == VALUE_UND || right == VALUE_UND)
                     return VALUE_NUM;
+                if(left == VALUE_GEN || right == VALUE_GEN)
+                    return VALUE_NUM;
                 switch(left){
                     case VALUE_NUM:
                         if(right == VALUE_NUM || right == VALUE_INT)
@@ -129,6 +131,8 @@ bin_type_mismatch:
         case TOKEN_lesser_equal:
         case TOKEN_greater:
         case TOKEN_greater_equal:
+                if(left == VALUE_GEN || right == VALUE_GEN)
+                    return VALUE_BOOL;
                 if(left == VALUE_UND || right == VALUE_UND)
                     return VALUE_BOOL;
             switch(left){
@@ -229,6 +233,14 @@ static Declaration* expr_get_decl(Context *context, Expression *expr){
         return context_get_decl(expr->token, context, 1);
 }
 
+static Expression* get_autocast(TokenType cast, Expression *exp){
+    Expression *c = expr_new(EXPR_UNARY);
+    c->unex.right = exp;
+    c->token = exp->token;
+    c->token.type = cast;
+    return c;
+}
+
 static ValueType check_expression(Expression *e, Context *context, uint8_t searchSuper){
     if(e == NULL || context == NULL)
         return VALUE_UND;
@@ -291,6 +303,18 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
                         }
                        // else
                        //     e->unex.right->expectedType = VALUE_NUM;
+                        break;
+                    case TOKEN_Number:
+                        e->valueType = VALUE_NUM;
+                        break;
+                    case TOKEN_Integer:
+                        e->valueType = VALUE_INT;
+                        break;
+                    case TOKEN_Boolean:
+                        e->valueType = VALUE_BOOL;
+                        break;
+                    case TOKEN_String:
+                        e->valueType = VALUE_STR;
                         break;
                     default:
                         e->valueType = t;
@@ -423,19 +447,13 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
                     case TOKEN_equal_equal:
                     case TOKEN_not_equal:
                        if(right == VALUE_BOOL && left == VALUE_GEN){
-                            Expression *autocast = expr_new(EXPR_UNARY);
-                            autocast->token.type = TOKEN_Boolean;
-                            autocast->unex.right = e->binex.left;
-                            autocast->valueType = VALUE_BOOL;
+                            Expression *autocast = get_autocast(TOKEN_Boolean, e->binex.left);
                             e->binex.left = autocast;
                             e->binex.left->valueType = VALUE_BOOL;
                             break;
                         }
                         else if(left == VALUE_BOOL && right == VALUE_GEN){
-                            Expression *autocast = expr_new(EXPR_UNARY);
-                            autocast->token.type = TOKEN_Boolean;
-                            autocast->unex.right = e->binex.right;
-                            autocast->valueType = VALUE_BOOL;
+                            Expression *autocast = get_autocast(TOKEN_Boolean, e->binex.right);
                             e->binex.right = autocast;
                             e->binex.right->valueType = VALUE_BOOL;
                             break;
@@ -459,18 +477,12 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
                     case TOKEN_lesser:
                     case TOKEN_lesser_equal:
                         if(right == VALUE_GEN){
-                            Expression *autocast = expr_new(EXPR_UNARY);
-                            autocast->token.type = TOKEN_Number;
-                            autocast->unex.right = e->binex.right;
-                            autocast->valueType = VALUE_NUM;
+                            Expression *autocast = get_autocast(TOKEN_Number, e->binex.right);
                             e->binex.right = autocast;
                             e->binex.right->valueType = VALUE_NUM;
                         }
                         if(left == VALUE_GEN){ 
-                            Expression *autocast = expr_new(EXPR_UNARY);
-                            autocast->token.type = TOKEN_Number;
-                            autocast->unex.right = e->binex.left;
-                            autocast->valueType = VALUE_NUM;
+                            Expression *autocast = get_autocast(TOKEN_Number, e->binex.left);
                             e->binex.left = autocast;
                             e->binex.left->valueType = VALUE_NUM;
                         }

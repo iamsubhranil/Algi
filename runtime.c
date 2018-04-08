@@ -9,7 +9,7 @@
 #include "display.h"
 #include "types.h"
 
-int64_t __algi_to_int(int type, ...){
+int64_t __algi_to_int(int32_t type, ...){
     //dbg("%s called", __func__);
     char *str, *err = NULL;
     va_list args;
@@ -49,7 +49,7 @@ __algi_int_convert:
     return 0;
 }
 
-double __algi_to_double(int type, ...){
+double __algi_to_double(int32_t type, ...){
     char *str, *err = NULL;
     va_list args;
     va_start(args, type);
@@ -89,7 +89,7 @@ __algi_double_convert:
     return 0;
 }
 
-char* __algi_to_string(int type, ...){
+char* __algi_to_string(int32_t type, ...){
     va_list val;
     va_start(val, type);
     char *s = NULL;
@@ -149,7 +149,8 @@ char* __algi_to_string(int type, ...){
     return s;
 }
 
-int8_t __algi_to_boolean(int type, ...){
+int8_t __algi_to_boolean(int32_t type, ...){
+    //dbg("Type : %d", type);
     va_list args;
     char *str;
     va_start(args, type);
@@ -171,6 +172,7 @@ __algi_boolean_convert:
         case VALUE_GEN:
             {
                 AlgiGenericValue agv = va_arg(args, AlgiGenericValue);
+                //dbg("agv.type : %d", agv.type);
                 if(agv.type == VALUE_INT)
                     return agv.inumber > 0 ? 1 : 0;
                 if(agv.type == VALUE_NUM)
@@ -208,7 +210,7 @@ void __algi_generic_print(AlgiGenericValue agv){
     }
 }
 
-void __algi_generic_store(AlgiGenericValue *value, int storeType, ...){
+void __algi_generic_store(AlgiGenericValue *value, int32_t storeType, ...){
     va_list args;
     va_start(args, storeType);
     //dbg("Storing %d to %p", storeType, value);
@@ -230,8 +232,8 @@ void __algi_generic_store(AlgiGenericValue *value, int storeType, ...){
                 AlgiGenericValue agv = va_arg(args, AlgiGenericValue);
                 value->type = agv.type;
                 value->inumber = agv.inumber;
+                return;
             }
-            break;
     }
     value->type = storeType;
 }
