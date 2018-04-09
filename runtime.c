@@ -12,25 +12,27 @@
 typedef union{
     int64_t inum;
     double dnum;
+    char *str;
 } NumConverter;
 
 int64_t __algi_to_int(int32_t type, ...){
     char *str, *err = NULL;
     va_list args;
     va_start(args, type);
+    NumConverter nc;
+    nc.inum = va_arg(args, int64_t);
+    va_end(args);
     switch(type){
         case VALUE_BOOL:
         case VALUE_INT:
-            return va_arg(args, int64_t);
+            return nc.inum;
         case VALUE_NUM:
             {
-                NumConverter nc;
-                nc.inum = va_arg(args, double);
                 return (int64_t)nc.dnum;
             }
         case VALUE_STR:
             {
-                str = va_arg(args, char*);
+                str = nc.str;
 //__algi_int_convert:;
                 int64_t res = (int64_t)strtol(str, &err, 10);
                 if(*err != 0){
@@ -66,20 +68,21 @@ double __algi_to_double(int32_t type, ...){
     char *str, *err = NULL;
     va_list args;
     va_start(args, type);
+    NumConverter nc;
+    nc.inum = va_arg(args, int64_t);
+    va_end(args);
     switch(type){
         case VALUE_BOOL:
-            return (double)va_arg(args, int64_t);
+            return (double)nc.inum;
         case VALUE_INT:
-            return (double)va_arg(args, int64_t);
+            return (double)nc.inum;
         case VALUE_NUM:
             {
-                NumConverter nc;
-                nc.inum = va_arg(args, int64_t);
                 return nc.dnum;
             }
         case VALUE_STR:
             {
-                str = va_arg(args, char*);
+                str = nc.str;
 //__algi_double_convert:;
                 double res = strtod(str, &err);
                 if(*err != 0){
@@ -118,6 +121,9 @@ char* __algi_to_string(int32_t type, ...){
     char *s = NULL;
     uint64_t len = 0;
     const char* format;
+    NumConverter nc;
+    nc.inum = va_arg(val, int64_t);
+    va_end(val);
     switch(type){
         case VALUE_INT:
             format = "%" PRId64;
@@ -126,10 +132,10 @@ char* __algi_to_string(int32_t type, ...){
             format = "%.10g";
             break;
         case VALUE_STR:
-            return va_arg(val, char*);
+            return nc.str;
         case VALUE_BOOL:
             {
-                int res = va_arg(val, int);
+                int res = nc.inum;
                 if(res)
                     len = 4;
                 else
@@ -158,20 +164,16 @@ char* __algi_to_string(int32_t type, ...){
             err("Unable to convert Container to String!");
             exit(EXIT_FAILURE);
     }
-    va_end(val);
-    va_start(val, type);
     if(len == 0){
-             len = vsnprintf(NULL, 0, format, val);
+             len = snprintf(NULL, 0, format, type == VALUE_INT ? nc.inum : nc.dnum);
              //dbg("Len : %" PRIu64, len);
     }
     else if(len == 4)
         return strdup("True");
     else if(len == 5)
         return strdup("False");
-    va_end(val);
-    va_start(val, type);
     s = (char *)malloc(len+1);
-    vsnprintf(s, len+1, format, val);
+    snprintf(s, len+1, format, type == VALUE_INT ? nc.inum : nc.dnum);
     return s;
 }
 
@@ -180,20 +182,21 @@ int8_t __algi_to_boolean(int32_t type, ...){
     va_list args;
     char *str;
     va_start(args, type);
+    NumConverter nc;
+    nc.inum = va_arg(args, int64_t);
+    va_end(args);
     switch(type){
         case VALUE_BOOL:
-            return va_arg(args, int64_t) ? 1 : 0;
+            return nc.inum ? 1 : 0;
         case VALUE_INT:
-            return va_arg(args, int64_t) ? 1 : 0;
+            return nc.inum ? 1 : 0;
         case VALUE_NUM:
             {
-                NumConverter nc;
-                nc.inum = va_arg(args, int64_t);
                 return nc.dnum ? 1 : 0;
             }
         case VALUE_STR:
             {
-                str = va_arg(args, char*);
+                str = nc.str;
 //__algi_boolean_convert:;
                 if(strcmp(str, "True") == 0)
                     return 1;
