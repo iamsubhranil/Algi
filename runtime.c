@@ -9,17 +9,29 @@
 #include "display.h"
 #include "types.h"
 
+typedef union{
+    int64_t inum;
+    double dnum;
+} NumConverter;
+
 int64_t __algi_to_int(int32_t type, ...){
-    //dbg("%s called", __func__);
     char *str, *err = NULL;
     va_list args;
     va_start(args, type);
     switch(type){
+        case VALUE_BOOL:
+        case VALUE_INT:
+            return va_arg(args, int64_t);
+        case VALUE_NUM:
+            {
+                NumConverter nc;
+                nc.inum = va_arg(args, double);
+                return (int64_t)nc.dnum;
+            }
         case VALUE_STR:
             {
                 str = va_arg(args, char*);
-__algi_int_convert:;
-                //dbg("Recieved string %s", str);
+//__algi_int_convert:;
                 int64_t res = (int64_t)strtol(str, &err, 10);
                 if(*err != 0){
                     err("Unable to convert %s to Integer!", str);
@@ -28,6 +40,7 @@ __algi_int_convert:;
                 return res;
             }
             break;
+            /*
         case VALUE_GEN:
             {
                 AlgiGenericValue agv = va_arg(args, AlgiGenericValue);
@@ -41,7 +54,7 @@ __algi_int_convert:;
                     str = agv.string;
                     goto __algi_int_convert;
                 }
-            }
+            }*/
         default:
             err("Unable to convert Container to Integer!");
             exit(EXIT_FAILURE);
@@ -54,11 +67,20 @@ double __algi_to_double(int32_t type, ...){
     va_list args;
     va_start(args, type);
     switch(type){
+        case VALUE_BOOL:
+            return (double)va_arg(args, int64_t);
+        case VALUE_INT:
+            return (double)va_arg(args, int64_t);
+        case VALUE_NUM:
+            {
+                NumConverter nc;
+                nc.inum = va_arg(args, int64_t);
+                return nc.dnum;
+            }
         case VALUE_STR:
             {
                 str = va_arg(args, char*);
-__algi_double_convert:;
-                //dbg("Recieved string %s", str);
+//__algi_double_convert:;
                 double res = strtod(str, &err);
                 if(*err != 0){
                     err("Unable to convert %s to Number!", str);
@@ -67,6 +89,7 @@ __algi_double_convert:;
                 return res;
             }
             break;
+            /*
         case VALUE_GEN:
             {
                 AlgiGenericValue agv = va_arg(args, AlgiGenericValue);
@@ -80,7 +103,7 @@ __algi_double_convert:;
                     str = agv.string;
                     goto __algi_double_convert;
                 }
-            }
+            }*/
         default:
             err("Unable to convert Container to Number!");
             exit(EXIT_FAILURE);
@@ -102,6 +125,8 @@ char* __algi_to_string(int32_t type, ...){
         case VALUE_NUM:
             format = "%.10g";
             break;
+        case VALUE_STR:
+            return va_arg(val, char*);
         case VALUE_BOOL:
             {
                 int res = va_arg(val, int);
@@ -111,7 +136,7 @@ char* __algi_to_string(int32_t type, ...){
                     len = 5;
             }
             break;
-        case VALUE_GEN:
+       /* case VALUE_GEN:
             {
                 AlgiGenericValue agv = va_arg(val, AlgiGenericValue);
                 if(agv.type == VALUE_INT)
@@ -128,6 +153,7 @@ char* __algi_to_string(int32_t type, ...){
                     return agv.string;
             }
             break;
+            */
         default:
             err("Unable to convert Container to String!");
             exit(EXIT_FAILURE);
@@ -155,10 +181,20 @@ int8_t __algi_to_boolean(int32_t type, ...){
     char *str;
     va_start(args, type);
     switch(type){
+        case VALUE_BOOL:
+            return va_arg(args, int64_t) ? 1 : 0;
+        case VALUE_INT:
+            return va_arg(args, int64_t) ? 1 : 0;
+        case VALUE_NUM:
+            {
+                NumConverter nc;
+                nc.inum = va_arg(args, int64_t);
+                return nc.dnum ? 1 : 0;
+            }
         case VALUE_STR:
             {
                 str = va_arg(args, char*);
-__algi_boolean_convert:;
+//__algi_boolean_convert:;
                 if(strcmp(str, "True") == 0)
                     return 1;
                 else if(strcmp(str, "False") == 0)
@@ -169,6 +205,7 @@ __algi_boolean_convert:;
                 }
             }
             break;
+            /*
         case VALUE_GEN:
             {
                 AlgiGenericValue agv = va_arg(args, AlgiGenericValue);
@@ -184,6 +221,7 @@ __algi_boolean_convert:;
                     goto __algi_boolean_convert;
                 }
             }
+            */
         default:
             err("Unable to convert Container to Boolean!");
             exit(EXIT_FAILURE);
@@ -193,7 +231,6 @@ __algi_boolean_convert:;
 }
 
 void __algi_generic_print(AlgiGenericValue agv){
-    //dbg("%d %ld\n", agv.type, agv.inumber);
     switch(agv.type){
         case VALUE_BOOL:
             printf("%s", agv.inumber ? "True" : "False");
@@ -213,7 +250,6 @@ void __algi_generic_print(AlgiGenericValue agv){
 void __algi_generic_store(AlgiGenericValue *value, int32_t storeType, ...){
     va_list args;
     va_start(args, storeType);
-    //dbg("Storing %d to %p", storeType, value);
     switch(storeType){
         case VALUE_BOOL:
             value->inumber = va_arg(args, int);

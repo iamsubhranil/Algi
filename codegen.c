@@ -173,7 +173,13 @@ static LLVMValueRef build_cast_call(LLVMBuilderRef builder, LLVMModuleRef module
         val = LLVMBuildGlobalString(builder, LLVMGetAsString(val, &l), "__runtime_call_tmp");
         argumentValue[1] = val;
     }
-    argumentValue[0] = LLVMConstInt(LLVMInt32Type(), algiType, 0);
+    else if(algiType == VALUE_GEN){
+        argumentValue[0] = LLVMBuildExtractValue(builder, val, 0, "genextrct0");
+        argumentValue[0] = LLVMBuildIntCast(builder, argumentValue[0], LLVMInt32Type(), "gen0cast");
+        argumentValue[1] = LLVMBuildExtractValue(builder, val, 1, "genextrct1");
+    }
+    if(algiType != VALUE_GEN)
+        argumentValue[0] = LLVMConstInt(LLVMInt32Type(), algiType, 0);
     LLVMTypeRef f = LLVMFunctionType(returnType, argumentType, 1, 1);
     LLVMValueRef fn = LLVMGetNamedFunction(module, callee);
     if(fn == NULL){
