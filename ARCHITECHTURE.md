@@ -1,4 +1,4 @@
-so here's the basic, pre-alpha implementation of the JITed dynamically typed language that I talked about in the previous post
+So here's the basic, pre-alpha implementation of the JITed dynamically typed language that I talked about in the [previous post](https://www.reddit.com/r/Compilers/comments/87zlq4/performing_type_check_for_an_optionally_typed/).
 
 The implementation is not very polished, might generate inefficient JIT code, and I certainly plan to shape it over time, but I think LLVM passes do a good job of optimizing it anyway, so keep an open mind.
 
