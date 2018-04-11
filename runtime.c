@@ -15,17 +15,23 @@ typedef union{
     char *str;
 } NumConverter;
 
+#define TYPE_CHECK() \
+    if(type == VALUE_STR){ \
+        nc.inum = va_arg(args, intptr_t); \
+    } \
+    else if(type != VALUE_NUM || type > VALUE_GEN){ \
+        nc.inum = va_arg(args, int64_t); \
+        type > VALUE_GEN ? type -= VALUE_GEN : 0; \
+    } \
+    else \
+        nc.dnum = va_arg(args, double);
+
 int64_t __algi_to_int(int32_t type, ...){
     char *str, *err = NULL;
     va_list args;
     va_start(args, type);
     NumConverter nc;
-    if(type != VALUE_NUM || type > VALUE_GEN){
-        nc.inum = va_arg(args, int64_t);
-        type > VALUE_GEN ? type -= VALUE_GEN : 0;
-    }
-    else
-        nc.dnum = va_arg(args, double);
+    TYPE_CHECK();
     va_end(args);
     switch(type){
         case VALUE_BOOL:
@@ -74,12 +80,7 @@ double __algi_to_double(int32_t type, ...){
     va_list args;
     va_start(args, type);
     NumConverter nc;
-    if(type != VALUE_NUM || type > VALUE_GEN){
-        nc.inum = va_arg(args, int64_t);
-        type > VALUE_GEN ? type -= VALUE_GEN : 0;
-    }
-    else
-        nc.dnum = va_arg(args, double);
+    TYPE_CHECK();
     va_end(args);
     switch(type){
         case VALUE_BOOL:
@@ -131,12 +132,7 @@ char* __algi_to_string(int32_t type, ...){
     char *s = NULL;
     uint64_t len = 0;
     NumConverter nc;
-    if(type != VALUE_NUM || type > VALUE_GEN){
-        nc.inum = va_arg(args, int64_t);
-        type > VALUE_GEN ? type -= VALUE_GEN : 0;
-    }
-    else
-        nc.dnum = va_arg(args, double);
+    TYPE_CHECK();
     va_end(args);
     switch(type){
         case VALUE_INT:
@@ -193,12 +189,7 @@ int8_t __algi_to_boolean(int32_t type, ...){
     char *str;
     va_start(args, type);
     NumConverter nc;
-    if(type != VALUE_NUM || type > VALUE_GEN){
-        nc.inum = va_arg(args, int64_t);
-        type > VALUE_GEN ? type -= VALUE_GEN : 0;
-    }
-    else
-        nc.dnum = va_arg(args, double);
+    TYPE_CHECK();
     va_end(args);
     switch(type){
         case VALUE_BOOL:
