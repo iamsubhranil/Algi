@@ -1,7 +1,7 @@
 # Algi
 ### An algorithmic language
 
-1. Building
+Building
 ===========
     
     1. Clone the repo
@@ -12,7 +12,7 @@
 
     4. `clang *.c $(llvm-config --libs)`
 
-2. Running Tests
+Running Tests
 ================
 
 All the tests in `tests/type2` folder is presently supported. Ideally, when the implementation is complete, Algi should run all tests inside the `test` folder. But as I'm implementing it one bit at a time, only a subset of the desired functionality is supported.
