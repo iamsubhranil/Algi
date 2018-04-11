@@ -98,6 +98,19 @@ static LLVMValueRef get_variable_ref(Expression *varE, uint8_t declareIfNotfound
 // to the engine
 static uint8_t runtime_function_used[ALGI_RUNTIME_FUNCTION_COUNT] = {0};
 
+static ValueType convert_llvmtype_to_algitype(LLVMTypeRef type){
+    if(type == get_generic_structure_type())
+        return VALUE_GEN;
+    if(type == LLVMInt1Type())
+        return VALUE_BOOL;
+    if(type == LLVMInt64Type())
+        return VALUE_INT;
+    if(type == LLVMDoubleType())
+        return VALUE_NUM;
+    return VALUE_STR;
+}
+
+
 static LLVMValueRef build_cast_call(LLVMBuilderRef builder, LLVMModuleRef module, LLVMValueRef val, ValueType castType){
     LLVMTypeRef argumentType[2];
     argumentType[0] = LLVMInt32Type();
@@ -117,14 +130,13 @@ static LLVMValueRef build_cast_call(LLVMBuilderRef builder, LLVMModuleRef module
     argumentType[1] = valueType;
     argumentValue[1] = val;
 
-    ValueType algiType;
+    ValueType algiType = convert_llvmtype_to_algitype(valueType);
     switch(castType){
         case VALUE_INT:
             {
                 runtime_function_used[ALGI_TO_INT] = 1;
                 callee = "__algi_to_int";
                 returnType = LLVMInt64Type();
-                algiType = valueType == get_generic_structure_type() ? VALUE_GEN : VALUE_STR;
             }
             break;
         case VALUE_NUM:
@@ -132,7 +144,6 @@ static LLVMValueRef build_cast_call(LLVMBuilderRef builder, LLVMModuleRef module
                 runtime_function_used[ALGI_TO_DOUBLE] = 1;
                 callee = "__algi_to_double";
                 returnType = LLVMDoubleType();
-                algiType = valueType == get_generic_structure_type() ? VALUE_GEN : VALUE_STR;
             }
             break;
         case VALUE_STR:
@@ -140,15 +151,6 @@ static LLVMValueRef build_cast_call(LLVMBuilderRef builder, LLVMModuleRef module
                 runtime_function_used[ALGI_TO_STRING] = 1;
                 callee = "__algi_to_string";
                 returnType = LLVMPointerType(LLVMInt8Type(), 0);
-                algiType = VALUE_GEN;
-                if(valueType == LLVMInt64Type()){
-                    algiType = VALUE_INT;;
-                }
-                else if(valueType == LLVMDoubleType()){ 
-                    algiType = VALUE_NUM;
-                }
-                else if(valueType == LLVMInt1Type())
-                    algiType = VALUE_BOOL;
             }
             break;
         case VALUE_BOOL:
@@ -156,7 +158,6 @@ static LLVMValueRef build_cast_call(LLVMBuilderRef builder, LLVMModuleRef module
                 runtime_function_used[ALGI_TO_BOOLEAN] = 1;
                 callee = "__algi_to_boolean";
                 returnType = LLVMInt1Type();
-                algiType = valueType == get_generic_structure_type() ? VALUE_GEN : VALUE_STR;
             }
             break;
         default:
@@ -176,7 +177,9 @@ static LLVMValueRef build_cast_call(LLVMBuilderRef builder, LLVMModuleRef module
     else if(algiType == VALUE_GEN){
         argumentValue[0] = LLVMBuildExtractValue(builder, val, 0, "genextrct0");
         argumentValue[0] = LLVMBuildIntCast(builder, argumentValue[0], LLVMInt32Type(), "gen0cast");
-        argumentValue[1] = LLVMBuildExtractValue(builder, val, 1, "genextrct1");
+        LLVMValueRef cons = LLVMConstInt(LLVMInt32Type(), VALUE_GEN, 0);
+        argumentValue[0] = LLVMBuildAdd(builder, argumentValue[0], cons, "gentype");
+        argumentValue[1] = LLVMBuildExtractValue(builder, val, 1, "genextrct1"); 
     }
     if(algiType != VALUE_GEN)
         argumentValue[0] = LLVMConstInt(LLVMInt32Type(), algiType, 0);
