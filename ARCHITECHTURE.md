@@ -12,7 +12,7 @@ Number n = 0
 Integer i = 1
 Set n = n + i
 ```
-The variable i is implicitly typecasted to a `Number` on the use of the operator `+`, the datatype of the floating point variables in Algi. We do not, obviously, perform an implicit cast between two variables of different types, like a `Number` a `String`. They are [convertible](https://github.com/iamsubhranil/Algi/blob/master/runtime.c#L93) though, by an explicit typecast which is evaluted at runtime, like the following :
+The variable i is implicitly typecasted to a `Number` on the use of the operator `+`, the datatype of the floating point variables in Algi. We do not, obviously, perform an implicit cast between two variables of different types, like a `Number` a `String`. They are [convertible](https://github.com/iamsubhranil/Algi/blob/master/runtime.c#L94) though, by an explicit typecast which is evaluted at runtime, like the following :
 ```
 String s = "38.382"
 Number n = Number(s)
@@ -41,11 +41,11 @@ Now notice carefully, for an relational operator, the code generator still gener
 
 Every access to a generic variable passes through an ARL call, which performs necessary modifications to the variable and returns the value, if required. If you use generic variables all over the code, Algi will behave more like an interpreter than a compiler, whereas, if you specify all types, Algi will behave exactly like a statically typed compiler.
 
-There's a huge catch though. Since on the LLVM side, we are talking only about a 64 bit integer to store our data, how do we store and retrieve a value of floating point type to and from a generic variable? Well, the answer is not so simple (or is it?). Each store to a generic variable passes through [`__algi_generic_store`](https://github.com/iamsubhranil/Algi/blob/master/runtime.c#L268) which has the following signature :
+There's a huge catch though. Since on the LLVM side, we are talking only about a 64 bit integer to store our data, how do we store and retrieve a value of floating point type to and from a generic variable? Well, the answer is not so simple (or is it?). Each store to a generic variable passes through [`__algi_generic_store`](https://github.com/iamsubhranil/Algi/blob/master/runtime.c#L259) which has the following signature :
 ```
 void __algi_generic_store(AlgiGenericValue *val, int32_t type, ...)
 ```
-First argument is the generic variable to store the data into, second is the type of the data that is going to be stored and the third is the data itself. Since we can't tell the type of the value that is going to be stored compile time, we make the function varargs. To store the data, based on the type, we [cast](https://github.com/iamsubhranil/Algi/blob/master/runtime.c#L278) the target value, and store it in the union, like the following :
+First argument is the generic variable to store the data into, second is the type of the data that is going to be stored and the third is the data itself. Since we can't tell the type of the value that is going to be stored compile time, we make the function varargs. To store the data, based on the type, we [cast](https://github.com/iamsubhranil/Algi/blob/master/runtime.c#L262) the target value, and store it in the union, like the following :
 ```
 switch(type){
     case VALUE_NUM: // Numeric type
@@ -70,6 +70,6 @@ As it is turned out, and as it is [implemented](https://github.com/iamsubhranil/
 ```
 passType = actualType + HIGHEST_TYPE
 ```
-As the highest type in Algi is `VALUE_GEN`, the type of generic value, what's done is `(int)VALUE_GEN` is added with the actual type, whenever a generic variable is implicitly or explicitly typecasted, and then it's value is extracted and passed to the cast calls. The cast methods in `ARL` in turn, [checks](https://github.com/iamsubhranil/Algi/blob/master/runtime.c#L23) whether the `sourceType` is greater than `VALUE_GEN`, and if it is, always [treats the argument as an `int64_t`](https://github.com/iamsubhranil/Algi/blob/master/runtime.c#L24) and converts it to `double` [if required](https://github.com/iamsubhranil/Algi/blob/master/runtime.c#L36) using an union. That way, the bit representation is retained, and any implicit compiler optimization is skipped.
+As the highest type in Algi is `VALUE_GEN`, the type of generic value, what's done is `(int)VALUE_GEN` is added with the actual type, whenever a generic variable is implicitly or explicitly typecasted, and then it's value is extracted and passed to the cast calls. The cast methods in `ARL` in turn, [checks](https://github.com/iamsubhranil/Algi/blob/master/runtime.c#L23) whether the `sourceType` is greater than `VALUE_GEN`, and if it is, always [treats the argument as an `int64_t`](https://github.com/iamsubhranil/Algi/blob/master/runtime.c#L22) and converts it to `double` [if required](https://github.com/iamsubhranil/Algi/blob/master/runtime.c#L42) using an union. That way, the bit representation is retained, and any implicit compiler optimization is skipped.
 
 There is still much more to be done, implementing function calls being the foremost. In the meantime, I'm very eager to get your feedbacks. 
