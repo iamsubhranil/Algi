@@ -1,0 +1,41 @@
+Print "\nTesting Generic Cast"
+Print "\n===================="
+Set i = 3994.281
+Print "\nGeneric variable i contains ", i
+Print "\nInteger(i) : ", Integer(i)
+Print "\nNumber(i) : ", Number(i)
+Print "\nString(i) : ", String(i)
+Print "\nBoolean(i) : ", Boolean(i)
+Print "\n\nTesting Integer Cast"
+Print "\n====================="
+Integer num = 3881
+Print "\nInteger variable num contains ", num
+Print "\nNumber(num) : ", Number(num)
+Print "\nString(num) : ", String(num)
+Print "\nBoolean(num) : ", Boolean(num)
+Print "\n\nTesting Number Cast"
+Print "\n===================="
+Number f = 482.391
+Print "\nNumber variable f contains ", f
+Print "\nInteger(f) : ", Integer(f)
+Print "\nString(f) : ", String(f)
+Print "\nBoolean(f) : ", Boolean(f)
+Print "\n\nTesting Boolean cast"
+Print "\n====================="
+Boolean b = True
+Print "\nBoolean variable b contains ", b
+Print "\nInteger(b) : ", Integer(b)
+Print "\nNumber(b) : ", Number(b)
+Print "\nString(b) : ", String(b)
+Print "\n\nTesting String Cast"
+Print "\n===================="
+String str = "8291"
+Print "\nString variable str contains ", str
+Print "\nInteger(str) : ", Integer(str)
+Print "\nNumber(str) : ", Number(str)
+Set str = "392.40014"
+Print "\nResetting str to ", str
+Print "\nNumber(str) : ", Number(str)
+Set str = "False"
+Print "\nResetting str to ", str
+Print "\nBoolean(str) : ", Boolean(str)
