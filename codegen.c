@@ -203,9 +203,9 @@ static LLVMValueRef expr_compile(Expression *e, LLVMContextRef context, LLVMBuil
                     case TOKEN_string:
                         return LLVMConstString(e->consex.sval, strlen(e->consex.sval), 0);
                     case TOKEN_True:
-                        return LLVMConstInt(LLVMInt1Type(), 1, 0);
+                        return LLVMConstInt(LLVMInt1Type(), 1, 1);
                     case TOKEN_False:
-                        return LLVMConstInt(LLVMInt1Type(), 0, 0);
+                        return LLVMConstInt(LLVMInt1Type(), 0, 1);
                     default:
                         return LLVMConstNull(LLVMInt1Type());
                 }
@@ -213,12 +213,18 @@ static LLVMValueRef expr_compile(Expression *e, LLVMContextRef context, LLVMBuil
         case EXPR_UNARY:
             {
                 LLVMValueRef expVal = expr_compile(e->unex.right, context, builder, module);
+                LLVMTypeRef t = LLVMTypeOf(expVal);
+                if(LLVMIsAAllocaInst(expVal)){
+                    t = LLVMGetAllocatedType(expVal);
+                    expVal = LLVMBuildLoad(builder, expVal, "tmpLoad");
+                }
 #define ISINT() \
-                if(LLVMTypeOf(expVal) == LLVMInt64Type() \
-                        || LLVMTypeOf(expVal) == LLVMInt1Type())
+                if(t == LLVMInt64Type() \
+                        || t == LLVMInt1Type())
 #define ISFLT() \
-                if(LLVMTypeOf(expVal) == LLVMDoubleType())
-
+                if(t == LLVMDoubleType())
+#define ISBOOL() \
+                if(t == LLVMInt1Type())
                 switch(e->token.type){
                     case TOKEN_minus:
                         ISINT()
@@ -227,17 +233,22 @@ static LLVMValueRef expr_compile(Expression *e, LLVMContextRef context, LLVMBuil
                             return LLVMBuildFNeg(builder, expVal, "fnegtmp");
                         return build_cast_call(builder, module, expVal, VALUE_NUM);
                     case TOKEN_not:
-                        if(LLVMTypeOf(expVal) == LLVMInt1Type())
+                        ISBOOL()
                             return LLVMBuildNot(builder, expVal, "nottmp");
                         return build_cast_call(builder, module, expVal, VALUE_BOOL);
                     case TOKEN_Integer:
-                        ISINT()
+                        ISINT(){
+                            ISBOOL()
+                                return LLVMBuildZExt(builder, expVal, LLVMInt64Type(), "bcastint");
                             return expVal;
+                        }
                         else ISFLT()
                             return LLVMBuildFPToSI(builder, expVal, LLVMInt64Type(), "fcasttmp");
                         return build_cast_call(builder, module, expVal, VALUE_INT);
                     case TOKEN_Number:
                         ISINT(){
+                            ISBOOL()
+                                return LLVMBuildUIToFP(builder, expVal, LLVMDoubleType(), "bdoublecasttmp");
                             return LLVMBuildSIToFP(builder, expVal, LLVMDoubleType(), "doublecasttmp");
                         }
                         else ISFLT()
@@ -247,11 +258,20 @@ static LLVMValueRef expr_compile(Expression *e, LLVMContextRef context, LLVMBuil
                         // case TOKEN_Structure:
                         //     return LLVMBuildPointerCast(builder, expVal, LLVMInt64Type(), "pointercasttmp");
                     case TOKEN_Boolean:
-                        ISINT()
+                        ISINT(){
+                            ISBOOL()
+                                return expVal;
                             return LLVMBuildIntCast(builder, expVal, LLVMInt1Type(), "boolcasttmp");
+                        }
                         return build_cast_call(builder, module, expVal, VALUE_BOOL);
                     case TOKEN_String:
                         return build_cast_call(builder, module, expVal, VALUE_STR);
+                    case TOKEN_Type:
+                        if(t == get_generic_structure_type()){ 
+                            expVal = LLVMBuildExtractValue(builder, expVal, 0, "typeextract");
+                            return LLVMBuildIntCast(builder, expVal, LLVMInt64Type(), "typecnv");
+                        }
+                         return LLVMConstInt(LLVMInt64Type(), convert_llvmtype_to_algitype(t), 0); 
                     default:
                         // TODO: Handle this properly
                         return LLVMConstNull(LLVMInt1Type());
