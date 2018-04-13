@@ -1,0 +1,29 @@
+Integer i = 0
+Print "Type(i) : ", Type(i)
+Number n = 0
+If(Type(i) == Type(n)){
+    Print "\nAlgi is broken!"
+}
+Else{
+    Print "\nAlgi is working"
+}
+
+If(Type(i) == Type(Integer(i))){
+    Print "\nType works with casting too!"
+}
+
+Print "\nType(Integer) : ", Type(i)
+Number n = 392.321
+Print "\nType(Number) : ", Type(n)
+String s = "String"
+Print "\nType(String) : ", Type(s)
+Boolean b = True
+Print "\nType(Boolean) : ", Type(b)
+Set se = 303
+Print "\nType(Generic:Integer) : ", Type(se)
+Set se = "String"
+Print "\nType(Generic:String) : ", Type(se)
+Set se = 202.3991
+Print "\nType(Generic:Number) : ", Type(se)
+Set se = False
+Print "\nType(Generic:Boolean) : ", Type(se)
