@@ -644,8 +644,11 @@ reg_x(container, CONTAINER, STRUCT)
                     }
                     //else if(valueType == VALUE_GEN)
                     //    break;
-                    else if(valueType == VALUE_INT && targetType == VALUE_NUM)
+                    else if(valueType == VALUE_INT && targetType == VALUE_NUM){
+                        Expression *autocast = get_autocast(TOKEN_Number, s->sets.value);
+                        s->sets.value = autocast;
                         break;
+                    }
                     /*else if((targetType == VALUE_NUM && (valueType == VALUE_INT || 
                       valueType == VALUE_GEN)))
                       break;
