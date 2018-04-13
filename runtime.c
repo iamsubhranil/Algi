@@ -261,7 +261,7 @@ void __algi_generic_store(AlgiGenericValue *value, int32_t storeType, ...){
     va_start(args, storeType);
     switch(storeType){
         case VALUE_BOOL:
-            value->inumber = va_arg(args, int);
+            value->inumber = va_arg(args, int64_t);
             break;
         case VALUE_INT:
             value->inumber = va_arg(args, int64_t);
