@@ -663,28 +663,46 @@ static LLVMValueRef blockstmt_compile(BlockStatement s, LLVMBuilderRef builder, 
         return ret;
 }
 
+static LLVMExecutionEngineRef globalEngine;
+static LLVMBuilderRef globalBuilder;
+static LLVMContextRef globalContext;
+
+static void algi_show_err(const char *msg){
+    err("%s", msg);
+}
+
 void codegen_compile(BlockStatement bs){
-    LLVMModuleRef module = LLVMModuleCreateWithName("AlgiModule");
+    LLVMModuleRef globalModule = LLVMModuleCreateWithName("AlgiModule");
     LLVMTypeRef ret_type = LLVMFunctionType(LLVMVoidType(), NULL, 0, 0);
 
-    func = LLVMAddFunction(module, "Main", ret_type);
+    func = LLVMAddFunction(globalModule, "Main", ret_type);
 
-    LLVMBuilderRef builder = LLVMCreateBuilder();
-    LLVMContextRef context = LLVMContextCreate();
+    globalBuilder = LLVMCreateBuilder();
+    globalContext = LLVMContextCreate();
 
     timer_start("Compilation");
 
-    blockstmt_compile(bs, builder, module, context, 1);
+    blockstmt_compile(bs, globalBuilder, globalModule, globalContext, 1);
 
     timer_end();
 
     char *err = NULL;
     dbg("Compiled code\n");
-    LLVMDumpModule(module);
-    LLVMVerifyModule(module, LLVMPrintMessageAction, &err);
+    LLVMDumpModule(globalModule);
+    int hasErr = LLVMVerifyModule(globalModule, LLVMReturnStatusAction, &err);
+    if(hasErr)
+        algi_show_err(err);
     LLVMDisposeMessage(err);
 
-    LLVMExecutionEngineRef engine;
+    if(hasErr){
+#ifdef DEBUG
+        err("Press C to abort : ");
+        char c = getc(stdin);
+        if(c == 'c' || c == 'C')
+#endif
+            exit(EXIT_FAILURE);
+    }
+
     err = NULL;
 
     timer_start("Initializing JIT");
@@ -695,7 +713,7 @@ void codegen_compile(BlockStatement bs){
     LLVMInitializeNativeAsmParser();
     LLVMInitializeNativeAsmPrinter();
 
-    if(LLVMCreateExecutionEngineForModule(&engine, module, &err) != 0){
+    if(LLVMCreateExecutionEngineForModule(&globalEngine, globalModule, &err) != 0){
         printf("\nFailed to create execution engine!\n");
         abort();
     }
@@ -708,12 +726,12 @@ void codegen_compile(BlockStatement bs){
     // Map Algi runtime functions
     for(uint64_t i = 0;i < ALGI_RUNTIME_FUNCTION_COUNT;i++){
         if(runtime_function_used[i]){
-            LLVMAddGlobalMapping(engine, LLVMGetNamedFunction(module, algi_runtime_functions[i].name),
+            LLVMAddGlobalMapping(globalEngine, LLVMGetNamedFunction(globalModule, algi_runtime_functions[i].name),
                     algi_runtime_functions[i].address);
         }
     }
 
-    LLVMSetModuleDataLayout(module, LLVMGetExecutionEngineTargetData(engine));
+    LLVMSetModuleDataLayout(globalModule, LLVMGetExecutionEngineTargetData(globalEngine));
 
     timer_end();
 
@@ -724,28 +742,49 @@ void codegen_compile(BlockStatement bs){
     LLVMPassManagerRef optimizer = LLVMCreatePassManager();
 
     LLVMPassManagerBuilderPopulateModulePassManager(pmb, optimizer);
-    LLVMRunPassManager(optimizer, module);
+    LLVMRunPassManager(optimizer, globalModule);
     timer_end();
     LLVMDisposePassManager(optimizer);
     LLVMPassManagerBuilderDispose(pmb);
 
+#ifdef DEBUG
     dbg("Optimized code \n");
-    LLVMDumpModule(module);
+    LLVMDumpModule(globalModule);
 
     dbg("Press any key to run the program");
     dbg("Press C to cancel : ");
     char c = getc(stdin);
     if(c != 'c' && c != 'C'){
-        void(*Main)(void) = (void (*)(void))LLVMGetFunctionAddress(engine, "Main");
+#endif
+        
+        void(*Main)(void) = (void (*)(void))LLVMGetFunctionAddress(globalEngine, "Main");
+
+#ifdef DEBUG
         timer_start("Execution");
+#endif
+
         Main();
+
+#ifdef DEBUG
         timer_end();
     }
     else
         warn("Run cancelled!");
+#endif
+}
 
-    LLVMDisposeBuilder(builder);
-    LLVMDisposeExecutionEngine(engine);
-    LLVMContextDispose(context);
+void codegen_dispose(){
+    if(variables != NULL)
+        free(variables);
+    LLVMDisposeBuilder(globalBuilder);
+    if(globalEngine != NULL){
+        LLVMRunStaticDestructors(globalEngine);
+        LLVMDisposeExecutionEngine(globalEngine);
+    }
+    LLVMShutdown();
+    LLVMContextDispose(globalContext);
+}
+
+void codegen_llvm_shutdown(){
     LLVMShutdown();
 }

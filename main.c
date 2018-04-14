@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <stdio.h>
+#include <inttypes.h>
 
 static char* read_whole_file(const char* fileName){
     struct stat statbuf;
@@ -39,52 +40,123 @@ static char* read_whole_file(const char* fileName){
     return NULL;
 }
 
+static TokenList tokenList = {NULL, 0, 0, 0};
+
+static void tokens_free_all(){
+    if(tokenList.count > 0)
+        tokens_free(tokenList);
+}
+
+static BlockStatement statements = {0, NULL};
+
+static void block_free_all(){
+    if(statements.count > 0)
+        blockstmt_dispose(statements);
+}
+
+static char* source = NULL;
+
+static void source_free(){
+    if(source != NULL)
+        free(source);
+}
+
 int main(int argc, char *argv[]){
+    atexit(codegen_dispose);
+
     if(argc != 2){
         err("Usage : %s filename\n", argv[0]);
         exit(EXIT_FAILURE);
     }
-    char *source = read_whole_file(argv[1]);
+
+    source = read_whole_file(argv[1]);
     if(source == NULL){
         exit(EXIT_FAILURE);
     }
+    atexit(source_free);
+
 #ifdef DEBUG
     timer_start("Lexing");
 #endif
-    TokenList l = tokens_scan(source);
+
+    tokenList = tokens_scan(source);
+    atexit(tokens_free_all);
+
 #ifdef DEBUG
     timer_end();
-    lexer_print_tokens(l);
 #endif
+
+    if(lexer_has_errors()){
+        err("%" PRIu64 " errors occurred while lexing!", lexer_has_errors());
+#ifdef DEBUG
+        err("Press C to abort : ");
+        char c = getc(stdin);
+        if(c == 'c' || c == 'C')
+#endif
+            return 0;
+    }
+
+#ifdef DEBUG 
+    lexer_print_tokens(tokenList);
+#endif
+
     stmt_init();
+    atexit(stmt_dispose);
+
     expr_init();
+    atexit(expr_dispose);
+
 #ifdef DEBUG
     timer_start("Parsing");
 #endif
-    BlockStatement s = parse(l);
+
+    statements = parse(tokenList);
+    atexit(block_free_all);
+
 #ifdef DEBUG
     timer_end();
-    blockstmt_print(s);
+#endif
+
+    if(parser_has_errors()){
+        err("%" PRIu64 " errors occurred while parsing!", parser_has_errors());
+#ifdef DEBUG
+        err("Press C to abort : ");
+        char c = getc(stdin);
+        if(c == 'c' || c == 'C')
+#endif
+            exit(EXIT_FAILURE);
+    }
+
+#ifdef DEBUG
+    blockstmt_print(statements);
 #endif
     printf("\n\n");
     fflush(stdout);
 #ifdef DEBUG
     timer_start("Type Checking");
 #endif
-    type_check(s); 
+
+    type_check(statements);
+    atexit(type_dispose);
+    
     printf("\n\n");
 #ifdef DEBUG
     timer_end();
-    blockstmt_print(s);
     //timer_start("JIT Compilation");
 #endif
-    codegen_compile(s);
+    if(type_has_errors()){
+        err("%" PRIu64 " errors occurred while type checking!", type_has_errors());
+#ifdef DEBUG
+        err("Press C to abort : ");
+        char c = getc(stdin);
+        if(c == 'c' || c == 'C')
+#endif
+            exit(EXIT_FAILURE);
+    }
 
-    type_dispose();
-    blockstmt_dispose(s);
-    tokens_free(l);
-    free(source);
-    stmt_dispose();
-    expr_dispose();
+#ifdef DEBUG
+    blockstmt_print(statements);
+#endif
+    codegen_compile(statements); 
     return 0;
 }

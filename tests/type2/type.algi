@@ -12,13 +12,10 @@ If(Type(i) == Type(Integer(i))){
     Print "\nType works with casting too!"
 }
 
-Print "\nType(Integer) : ", Type(i)
-Number n = 392.321
-Print "\nType(Number) : ", Type(n)
-String s = "String"
-Print "\nType(String) : ", Type(s)
-Boolean b = True
-Print "\nType(Boolean) : ", Type(b)
+Print "\nType(Integer) : ", Type(Integer)
+Print "\nType(Number) : ", Type(Number)
+Print "\nType(String) : ", Type(String)
+Print "\nType(Boolean) : ", Type(Boolean)
 Set se = 303
 Print "\nType(Generic:Integer) : ", Type(se)
 Set se = "String"
@@ -27,3 +24,6 @@ Set se = 202.3991
 Print "\nType(Generic:Number) : ", Type(se)
 Set se = False
 Print "\nType(Generic:Boolean) : ", Type(se)
+Print "\nAssigning Type(Integer) to an Integer : "
+String s = Type(Integer)
+Print "\nAssignment succeeded : ", s == Type(Integer)

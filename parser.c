@@ -206,6 +206,7 @@ static Expression* _primary(){
             if(istype() && list.tokens[present + 1].type == TOKEN_paranthesis_close){
                 ex->unex.right = expr_new(EXPR_UNARY);
                 ex->unex.right->token = presentToken;
+                ex->unex.right->unex.right = NULL;
                 ex->valueType = valuetype_from_token(presentToken);
                 advance(); // type
                 advance(); // )

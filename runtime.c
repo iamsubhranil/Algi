@@ -47,7 +47,7 @@ int64_t __algi_to_int(int32_t type, ...){
 //__algi_int_convert:;
                 int64_t res = (int64_t)strtol(str, &err, 10);
                 if(*err != 0){
-                    err("Unable to convert %s to Integer!", str);
+                    err("Unable to convert %s to Integer!\n", str);
                     exit(EXIT_FAILURE);
                 }
                 return res;
@@ -69,7 +69,7 @@ int64_t __algi_to_int(int32_t type, ...){
                 }
             }*/
         default:
-            err("Unable to convert Container to Integer!");
+            err("Unable to convert Container to Integer!\n");
             exit(EXIT_FAILURE);
     }
     return 0;
@@ -97,7 +97,7 @@ double __algi_to_double(int32_t type, ...){
 //__algi_double_convert:;
                 double res = strtod(str, &err);
                 if(*err != 0){
-                    err("Unable to convert %s to Number!", str);
+                    err("Unable to convert %s to Number!\n", str);
                     exit(EXIT_FAILURE);
                 }
                 return res;
@@ -119,7 +119,7 @@ double __algi_to_double(int32_t type, ...){
                 }
             }*/
         default:
-            err("Unable to convert Container to Number!");
+            err("Unable to convert Container to Number!\n");
             exit(EXIT_FAILURE);
             break;
     }
@@ -171,7 +171,7 @@ char* __algi_to_string(int32_t type, ...){
             break;
             */
         default:
-            err("Unable to convert Container to String!");
+            err("Unable to convert Container to String!\n");
             exit(EXIT_FAILURE);
     }
 
@@ -209,7 +209,7 @@ int8_t __algi_to_boolean(int32_t type, ...){
                 else if(strcmp(str, "False") == 0)
                     return 0;
                 else{
-                    err("Unable to convert String \"%s\" to Boolean!", str);
+                    err("Unable to convert String \"%s\" to Boolean!\n", str);
                     exit(EXIT_FAILURE);
                 }
             }
@@ -232,7 +232,7 @@ int8_t __algi_to_boolean(int32_t type, ...){
             }
             */
         default:
-            err("Unable to convert Container to Boolean!");
+            err("Unable to convert Container to Boolean!\n");
             exit(EXIT_FAILURE);
             break;
     }
