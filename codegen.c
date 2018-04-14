@@ -734,8 +734,8 @@ void codegen_compile(BlockStatement bs){
     dbg("Press C to cancel : ");
     char c = getc(stdin);
     if(c != 'c' && c != 'C'){
-        timer_start("Execution");
         void(*Main)(void) = (void (*)(void))LLVMGetFunctionAddress(engine, "Main");
+        timer_start("Execution");
         Main();
         timer_end();
     }
