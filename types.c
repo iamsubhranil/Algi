@@ -279,7 +279,13 @@ static ValueType check_expression(Expression *e, Context *context, uint8_t searc
                 ValueType t = check_expression(e->unex.right, context, searchSuper);
                 switch(e->token.type){
                     case TOKEN_Type:
+                        //if(e->valueType == VALUE_GEN)
                         e->valueType = VALUE_INT;
+                        if(t != VALUE_GEN){
+                            e->type = EXPR_CONSTANT;
+                            e->consex.ival = t;
+                            e->token.type = TOKEN_integer;
+                        }
                        // e->expectedType = VALUE_INT;
                         break;
                     case TOKEN_not:

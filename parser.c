@@ -109,6 +109,24 @@ static char* format_string(const char *str, size_t length){
     return ret;
 }
 
+static bool istype(){
+    return match(Number) || match(Integer) || match(String)
+        || match(Boolean);
+}
+
+static int valuetype_from_token(Token t){
+    switch(t.type){
+        case TOKEN_Number:
+            return VALUE_NUM;
+        case TOKEN_Integer:
+            return VALUE_INT;
+        case TOKEN_Boolean:
+            return VALUE_BOOL;
+        default:
+            return VALUE_STR;
+    }
+}
+
 static Expression* _primary(){
     if(match(number)){
         Expression *ex = expr_new(EXPR_CONSTANT);
@@ -173,15 +191,39 @@ static Expression* _primary(){
         ex->valueType = VALUE_STR;
         return ex;
     }
-    if(match(not) || match(minus) || match(Type)){
+    if(match(not) || match(minus)){
         Expression *ex = expr_new(EXPR_UNARY);
         ex->token = presentToken;
         advance();
         ex->unex.right = _primary();
         return ex;
     }
-    if(match(Integer) || match(Number) || match(String)
-            || match(Structure) || match(Boolean)){
+    if(match(Type)){
+        Expression *ex = expr_new(EXPR_UNARY);
+        ex->token = presentToken;
+        advance();
+        if(consume(paranthesis_open)){
+            if(istype() && list.tokens[present + 1].type == TOKEN_paranthesis_close){
+                ex->unex.right = expr_new(EXPR_UNARY);
+                ex->unex.right->token = presentToken;
+                ex->valueType = valuetype_from_token(presentToken);
+                advance(); // type
+                advance(); // )
+                return ex;
+            }
+            else {
+                ex->valueType = VALUE_GEN;
+                ex->unex.right = expression();
+            }
+            if(consume(paranthesis_close))
+                return ex;
+        }
+        token_print_source(presentToken, 1);
+        hasErrors++;
+        advance();
+        return NULL;
+    }
+    if(istype() /* || match(Structure) */){
         Token op = presentToken;
         advance();
         if(match(paranthesis_open)){ // cast
@@ -192,7 +234,7 @@ static Expression* _primary(){
             consume(paranthesis_close);
             return ex;
         }
-        if(match(identifier)){ // typed arguments
+       /* if(match(identifier)){ // typed arguments
             Expression *ex = expr_new(EXPR_VARIABLE);
             ex->token = presentToken;
             advance();
@@ -219,6 +261,7 @@ static Expression* _primary(){
             }
             return ex;
         }
+        */
         err("Bad type specification!");
         token_print_source(op, 1);
         hasErrors++;

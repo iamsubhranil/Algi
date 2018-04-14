@@ -192,6 +192,8 @@ static LLVMValueRef build_cast_call(LLVMBuilderRef builder, LLVMModuleRef module
 }
 
 static LLVMValueRef expr_compile(Expression *e, LLVMContextRef context, LLVMBuilderRef builder, LLVMModuleRef module){
+    if(e == NULL)
+        return LLVMConstNull(LLVMInt64Type());
     switch(e->type){
         case EXPR_CONSTANT:
             {
@@ -271,7 +273,7 @@ static LLVMValueRef expr_compile(Expression *e, LLVMContextRef context, LLVMBuil
                             expVal = LLVMBuildExtractValue(builder, expVal, 0, "typeextract");
                             return LLVMBuildIntCast(builder, expVal, LLVMInt64Type(), "typecnv");
                         }
-                         return LLVMConstInt(LLVMInt64Type(), convert_llvmtype_to_algitype(t), 0); 
+                         return LLVMConstInt(LLVMInt64Type(), e->valueType, 0); 
                     default:
                         // TODO: Handle this properly
                         return LLVMConstNull(LLVMInt1Type());
